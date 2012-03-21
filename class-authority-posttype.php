@@ -57,7 +57,7 @@ class Authority_Posttype {
 		if( ! isset( $term->term_id , $term->taxonomy , $term->term_taxonomy_id ))
 			return FALSE;
 
-		if( $return = wp_cache_get( $term->term_taxonomy_id , 'scrib_authority_ttid____' ))
+		if( $return = wp_cache_get( $term->term_taxonomy_id , 'scrib_authority_ttid' ))
 			return $return;
 			
 		// query to find a matching authority record
@@ -308,7 +308,7 @@ class Authority_Posttype {
 		$this->get_post_meta( $post->ID );
 		$this->control_taxonomies( 'primary_tax' );
 ?>
-		<label class="screen-reader-text" for="<?php echo $this->get_field_id( 'primary_termname' ); ?>">Primary term</label><input type="text" name="<?php echo $this->get_field_name( 'primary_termname' ); ?>" tabindex="x" id="<?php echo $this->get_field_id( 'primary_termname' ); ?>" placeholder="Authoritative term" value="<?php echo $this->instance['primary_termname']; ?>"/>
+		<label class="screen-reader-text" for="<?php echo $this->get_field_id( 'primary_termname' ); ?>">Primary term</label><input type="text" name="<?php echo $this->get_field_name( 'primary_termname' ); ?>" tabindex="x" id="<?php echo $this->get_field_id( 'primary_termname' ); ?>" placeholder="Authoritative term" value="<?php echo $this->instance['primary_termname']; ?>"/> (<a href="<?php echo get_edit_term_link( $this->instance['primary_term']->term_id , $this->instance['primary_term']->taxonomy ); ?>">edit term</a>)
 
 		<p>@TODO: in addition to automatically suggesting terms (and their taxonomy), we'll have to check that the term is not already associated with another authority record.</p>
 <?php
