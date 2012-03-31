@@ -9,4 +9,4 @@ Author URI: http://maisonbisson.com/blog/
 
 
 // include required components
-require_once( __DIR__ .'/plugin/class-authority-posttype.php');
+require_once( dirname( __FILE__ ) .'/plugin/class-authority-posttype.php');
