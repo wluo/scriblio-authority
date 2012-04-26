@@ -654,13 +654,13 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 
 		// get the new and old terms
 		$new_terms = $wpdb->get_col('SELECT term_id
-			FROM wp_7_term_taxonomy
+			FROM '. $wpdb->term_taxonomy .'
 			WHERE taxonomy = "'. $new_tax .'"
 			ORDER BY term_id
 			'
 		);
 		$old_terms = $wpdb->get_col('SELECT term_id
-			FROM wp_7_term_taxonomy
+			FROM '. $wpdb->term_taxonomy .'
 			WHERE taxonomy = "'. $old_tax .'"
 			ORDER BY term_id
 			'
@@ -676,9 +676,18 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			$old_term = get_term( (int) $term_id , $old_tax );
 			$new_term = get_term( (int) $term_id , $new_tax );
 
-			$post_ids[] = $post_id = $this->create_authority_record( $new_term , array( $old_term ));
+			if( $authority = $this->get_term_authority( $old_term )) // the authority record already exists for this term
+			{
+				$post_ids[] = $post_id = $authority->post_id;
+			}
+			else // no authority record exists, create one and enforce it on the corpus
+			{
+				$post_ids[] = $post_id = $this->create_authority_record( $new_term , array( $old_term ));
+			}
 
+			// enforce the authority on the corpus
 			$this->enforce_authority_on_corpus( $post_id , -1 );
+
 		}
 
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
