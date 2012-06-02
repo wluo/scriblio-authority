@@ -190,9 +190,9 @@ class Authority_Posttype {
 		$object_terms = array();
 
 		// primary (authoritative) taxonomy term
-		if( isset( $meta['primary_term']->taxonomy->term_id ))
+		if( isset( $meta['primary_term']->term_id ))
 		{
-			$object_terms[ $meta['primary_term']->taxonomy ][] = (int) $meta['primary_term']->taxonomy->term_id;
+			$object_terms[ $meta['primary_term']->taxonomy ][] = (int) $meta['primary_term']->term_id;
 
 			// clear the authority cache for this term
 			$this->delete_term_authority_cache( $meta['primary_term'] );
@@ -204,9 +204,9 @@ class Authority_Posttype {
 				$post->post_name = $meta['primary_term']->slug;
 
 			// remove the action before attempting to save the post, then reinstate it
-			remove_action( 'save_post', array( $this , 'save_post_meta' ));
+			remove_action( 'save_post', array( $this , 'save_post' ));
 			wp_insert_post( $post );
-			add_action( 'save_post', array( $this , 'save_post_meta' ));
+			add_action( 'save_post', array( $this , 'save_post' ));
 		}
 
 		// alias terms
@@ -425,6 +425,8 @@ class Authority_Posttype {
 
 		// get the terms to work with
 		$terms = wp_get_object_terms( $object_id , get_taxonomies( array( 'public' => true )));
+
+		$delete_terms = array();
 
 		$new_object_terms = $terms_to_delete = array();
 		foreach( $terms as $term )
