@@ -31,11 +31,20 @@ class Authority_Posttype {
 		return;
 	}
 
+	// I'm pretty sure the only reason why terms aren't fetchable by TTID has to do with the history of WPMU and sitewide terms.
+	// In this case, we need a UI input terms from multiple taxonomies, so we use the TTID to represent the term in the form element,
+	// and we need this function to translate those TTIDs into real terms for storage when the form is submitted.
 	function get_term_by_ttid( $tt_id )
 	{
 		global $wpdb;
 
 		$term_id_and_tax = $wpdb->get_row( $wpdb->prepare( "SELECT term_id , taxonomy FROM $wpdb->term_taxonomy WHERE term_taxonomy_id = %d LIMIT 1" , $tt_id ) , OBJECT );
+
+		if( ! $term_id_and_tax )
+		{
+			$error = new WP_Error( 'invalid_ttid' , 'Invalid term taxonomy ID' );
+			return $error;			
+		}
 
 		return get_term( (int) $term_id_and_tax->term_id , $term_id_and_tax->taxonomy );
 	}
@@ -655,18 +664,19 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			return FALSE;
 
 		// get the new and old terms
-		$new_terms = $wpdb->get_col('SELECT term_id
+		$new_terms = $wpdb->get_col( $wpdb->prepare( 'SELECT term_id
 			FROM '. $wpdb->term_taxonomy .'
-			WHERE taxonomy = "'. $new_tax .'"
+			WHERE taxonomy = %s
 			ORDER BY term_id
 			'
-		);
-		$old_terms = $wpdb->get_col('SELECT term_id
+		) , $new_tax );
+
+		$old_terms = $wpdb->get_col( $wpdb->prepare( 'SELECT term_id
 			FROM '. $wpdb->term_taxonomy .'
-			WHERE taxonomy = "'. $old_tax .'"
+			WHERE taxonomy = %s
 			ORDER BY term_id
 			'
-		);
+		) , $old_tax );
 
 		// find parallel terms and get just a slice of them
 		$intersection = array_intersect( $new_terms , $old_terms );
