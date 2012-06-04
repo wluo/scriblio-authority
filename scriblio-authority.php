@@ -10,3 +10,4 @@ Author URI: http://maisonbisson.com/blog/
 
 // include required components
 require_once( dirname( __FILE__ ) .'/components/class-authority-posttype.php');
+require_once( dirname( __FILE__ ) .'/components/class-authority-easyterms.php');

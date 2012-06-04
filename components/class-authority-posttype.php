@@ -706,4 +706,5 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 	}
 
 }//end Authority_Posttype class
-new Authority_Posttype;
+global $scriblio_authority_posttype;
+$scriblio_authority_posttype = new Authority_Posttype;
