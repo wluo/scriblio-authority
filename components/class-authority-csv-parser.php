@@ -50,6 +50,11 @@ class Authority_CSV_Parser implements Iterator
 			return false;
 		}
 
+		if( count( $this->headers ) !== count( $next ) )
+		{
+			return new WP_Error( 'column-mismatch', 'Row did not have expected number of columns' );
+		}
+
 		$this->current = array_combine( $this->headers, $next );
 		return $this->current;
 	}

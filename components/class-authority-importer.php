@@ -14,7 +14,8 @@ if ( ! defined( 'WP_LOAD_IMPORTERS' ) )
 
 require_once ABSPATH . 'wp-admin/includes/import.php';
 
-if ( ! class_exists( 'WP_Importer' ) ) {
+if ( ! class_exists( 'WP_Importer' ) )
+{
 	$class_wp_importer = ABSPATH . 'wp-admin/includes/class-wp-importer.php';
 	if ( file_exists( $class_wp_importer ) )
 		require $class_wp_importer;
@@ -54,7 +55,12 @@ class Authority_Importer
 				$this->parse( $file );
 				$position = isset( $_POST['position'] ) ? (int) $_POST['position'] : 0;
 				$new_position = $this->import( compact( 'position' ) );
-				$this->next( $new_position );
+
+				if( $new_position != false )
+				{
+					$this->next( $new_position );
+				}
+
 				break;
 		}
 
@@ -97,9 +103,9 @@ class Authority_Importer
 		(function($){
 			$(function(){
 				function doSubmit() {
-					//$('.scrib-auth-importer').submit();
+					$('.scrib-auth-importer').submit();
 				}
-				setTimeout( doSubmit, 3000 );
+				setTimeout( doSubmit, 2000 );
 			});
 		})(jQuery);
 		</script>
@@ -113,7 +119,7 @@ class Authority_Importer
 	{
 		$defaults = array(
 			'position' => 0,
-			'limit' => 10,
+			'limit' => 20,
 		);
 		$args = wp_parse_args( $args, $defaults );
 		extract( $args, EXTR_SKIP );
@@ -126,12 +132,17 @@ class Authority_Importer
 		$count = 0;
 		while ( false !== ( $line = $this->parser->next() ) )
 		{
+			if ( is_wp_error( $line ) )
+			{
+				$this->import_error( $line );
+				continue;
+			}
+
 			$result = $this->import_one( $line );
 
 			if ( is_wp_error( $result ) )
 			{
-				printf( '<li>%s (tax:%s, name:%s, corrected name: %s)</li>', $result->get_error_message(),
-					$line['taxonomy'], $line['name'], $line['Corrected Name'] );
+				$this->import_error( $result );
 			}
 			else
 			{
@@ -148,6 +159,12 @@ class Authority_Importer
 		return false;
 	}
 
+	function import_error( $error )
+	{
+		printf( '<li>%s (tax:%s, name:%s, corrected name: %s)</li>', $error->get_error_message(),
+			$line['taxonomy'], $line['name'], $line['Corrected Name'] );
+	}
+
 	/**
 	 * Import a single record from the CSV as an authority record.
 	 */
@@ -155,9 +172,9 @@ class Authority_Importer
 	{
 		global $scriblio_authority_posttype;
 
-		if ( ! isset($record['taxonomy']) ||
-			! isset($record['Corrected Name']) ||
-			! isset($record['name'])
+		if ( empty($record['taxonomy']) ||
+			empty($record['Corrected Name']) ||
+			empty($record['name'])
 		) {
 			return new WP_Error( 'missing-field', 'One or more fields were missing from the record' );
 		}
@@ -170,9 +187,24 @@ class Authority_Importer
 		$primary_term = $this->get_or_insert_term( $primary_term_name, $taxonomy );
 		$alias_term = $this->get_or_insert_term( $alias_term_name, $taxonomy );
 
-		if ( false === ( $post_id = $scriblio_authority_posttype->get_term_authority( $primary_term ) ) )
+		if ( false === ( $term_authority = $scriblio_authority_posttype->get_term_authority( $primary_term ) ) )
 		{
+			// Creating a new authority record
 			$post_id = $scriblio_authority_posttype->create_authority_record( $primary_term, array( $alias_term ) );
+
+			if( FALSE === $post_id )
+			{
+				return new WP_Error( 'create-failed', 'Could not create authority record' );
+			}
+		}
+		else
+		{
+			// Adding an alias to an existing record
+			if( ! $scriblio_authority_posttype->authority_has_alias( $term_authority, $alias_term ) )
+			{
+				$term_authority->alias_terms[] = $alias_term;
+				$scriblio_authority_posttype->update_post_meta( $term_authority->post_id, $term_authority );
+			}
 		}
 	}
 
