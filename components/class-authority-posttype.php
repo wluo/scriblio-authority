@@ -138,6 +138,11 @@ class Authority_Posttype {
 		{
 			foreach( (array) $blob as $blobette )
 			{
+				if( empty( $blobette ) )
+				{
+					continue;
+				}
+
 				$parts = array_map( 'trim' , (array) explode( ':' , $blobette ));
 	
 				if( 'tag' == $parts[0] ) // parts[0] is the taxonomy
@@ -177,6 +182,31 @@ class Authority_Posttype {
 		return wp_verify_nonce( $_POST[ $this->id_base .'-nonce' ] , plugin_basename( __FILE__ ));
 	}
 
+	/**
+	 * Check if an authority record has an alias.
+	 *
+	 * @param $term_authority The term authority record to check, as return by get_term_authority()
+	 * @param $alias_term The alias term to check
+	 * @return boolean
+	 */
+	function authority_has_alias( $term_authority, $alias_term )
+	{
+		if( ! is_array( $term_authority->alias_terms ) )
+		{
+			return false;
+		}
+
+		foreach( $term_authority->alias_terms as $term )
+		{
+			if( $term->term_id == $alias_term->term_id )
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	function get_field_name( $field_name )
 	{
 		return $this->id_base . '[' . $field_name . ']';
@@ -193,10 +223,19 @@ class Authority_Posttype {
 		return $this->instance;
 	}
 
-	function update_post_meta( $post_id , $meta )
+	function update_post_meta( $post_id , $meta_array )
 	{
 		// the terms we'll set on this object
 		$object_terms = array();
+
+		if( is_object( $meta_array ) )
+		{
+			$meta = (array) $meta_array;
+		}
+		else
+		{
+			$meta = $meta_array;
+		}
 
 		// primary (authoritative) taxonomy term
 		if( isset( $meta['primary_term']->term_id ))
@@ -219,10 +258,18 @@ class Authority_Posttype {
 		}
 
 		// alias terms
+		$alias_dedupe = array();
+		foreach( (array) $meta['alias_terms'] as $term )
+		{
+			$alias_dedupe[ (int) $term->term_id ] = $term;
+		}
+		$meta['alias_terms'] = $alias_dedupe;
+		unset( $alias_dedupe );
+
 		foreach( (array) $meta['alias_terms'] as $term )
 		{
 				// don't insert the primary term as an alias, that's just silly
-				if( $term->term_taxonomy_id == $instance['primary_term']->term_taxonomy_id )
+				if( $term->term_taxonomy_id == $meta['primary_term']->term_taxonomy_id )
 					continue;
 
 				$object_terms[ $term->taxonomy ][] = (int) $term->term_id;
