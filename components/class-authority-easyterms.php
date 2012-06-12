@@ -141,12 +141,13 @@ class Authority_EasyTerms
 
 		$taxonomy = $this->shortcodes[ $tag ];
 
-		$value = $wpdb->escape( $content );
-		$term = get_term_by( 'name', $value, $taxonomy );
+		$term_str = wp_filter_nohtml_kses( $content );
+		$term_obj = get_term_by( 'name' , $wpdb->escape( $term_str ) , $taxonomy );
 
-		$term = apply_filters( 'easytags_term', $term );
+		$term_str = apply_filters( 'easytags_term', $term_str , $term_obj );
 
-		wp_set_object_terms( $this->post_ID, (int) $term->term_id, $term->taxonomy, true );
+		if( ! empty( $term_str ))
+			wp_set_object_terms( $this->post_ID, $term_str , $taxonomy , TRUE );
 	}
 
 	public function do_shortcode( $atts, $content, $tag )
