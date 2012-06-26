@@ -715,15 +715,17 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			FROM '. $wpdb->term_taxonomy .'
 			WHERE taxonomy = %s
 			ORDER BY term_id
-			'
-		) , $new_tax );
+			',
+			$new_tax
+		));
 
 		$old_terms = $wpdb->get_col( $wpdb->prepare( 'SELECT term_id
 			FROM '. $wpdb->term_taxonomy .'
 			WHERE taxonomy = %s
 			ORDER BY term_id
-			'
-		) , $old_tax );
+			',
+			$old_tax
+		));
 
 		// find parallel terms and get just a slice of them
 		$intersection = array_intersect( $new_terms , $old_terms );
