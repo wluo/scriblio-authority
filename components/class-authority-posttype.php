@@ -261,7 +261,7 @@ class Authority_Posttype {
 		$alias_dedupe = array();
 		foreach( (array) $meta['alias_terms'] as $term )
 		{
-			$alias_dedupe[ (int) $term->term_id ] = $term;
+			$alias_dedupe[ (int) $term->term_taxonomy_id ] = $term;
 		}
 		$meta['alias_terms'] = $alias_dedupe;
 		unset( $alias_dedupe );
