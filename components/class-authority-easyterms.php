@@ -146,8 +146,7 @@ class Authority_EasyTerms
 
 		$term_str = apply_filters( 'easytags_term', $term_str , $term_obj );
 
-		if( ! empty( $term_str ))
-			wp_set_object_terms( $this->post_ID, $term_str , $taxonomy , TRUE );
+		wp_set_object_terms( $this->post_ID, $term_str , $taxonomy , TRUE );
 	}
 
 	public function do_shortcode( $atts, $content, $tag )
@@ -168,6 +167,3 @@ class Authority_EasyTerms
 		return sprintf( '<a href="%s">%s</a>', htmlentities( $link ), $content );
 	}
 }
-
-global $scriblio_authority_easyterms;
-$scriblio_authority_easyterms = new Authority_EasyTerms;

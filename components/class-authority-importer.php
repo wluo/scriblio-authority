@@ -90,6 +90,10 @@ class Authority_Importer
 		return true;
 	}
 
+	public static function init() {
+		register_importer( 'scriblio_authority', 'Scriblio Authority CSV', 'Import Scriblio Authority records from CSV.', array( Authority::importer(), 'dispatch' ) );
+	}//end init
+
 	public function next( $position = 0 )
 	{
 		?>
@@ -170,8 +174,6 @@ class Authority_Importer
 	 */
 	function import_one( $record )
 	{
-		global $scriblio_authority_posttype;
-
 		if ( empty($record['taxonomy']) ||
 			empty($record['Corrected Name']) ||
 			empty($record['name'])
@@ -187,10 +189,10 @@ class Authority_Importer
 		$primary_term = $this->get_or_insert_term( $primary_term_name, $taxonomy );
 		$alias_term = $this->get_or_insert_term( $alias_term_name, $taxonomy );
 
-		if ( false === ( $term_authority = $scriblio_authority_posttype->get_term_authority( $primary_term ) ) )
+		if ( false === ( $term_authority = Authority::post_type()->get_term_authority( $primary_term ) ) )
 		{
 			// Creating a new authority record
-			$post_id = $scriblio_authority_posttype->create_authority_record( $primary_term, array( $alias_term ) );
+			$post_id = Authority::post_type()->create_authority_record( $primary_term, array( $alias_term ) );
 
 			if( FALSE === $post_id )
 			{
@@ -200,10 +202,10 @@ class Authority_Importer
 		else
 		{
 			// Adding an alias to an existing record
-			if( ! $scriblio_authority_posttype->authority_has_alias( $term_authority, $alias_term ) )
+			if( ! Authority::post_type()->authority_has_alias( $term_authority, $alias_term ) )
 			{
 				$term_authority->alias_terms[] = $alias_term;
-				$scriblio_authority_posttype->update_post_meta( $term_authority->post_id, $term_authority );
+				Authority::post_type()->update_post_meta( $term_authority->post_id, $term_authority );
 			}
 		}
 	}
@@ -266,10 +268,3 @@ class Authority_Importer
 		wp_import_upload_form( 'admin.php?import=scriblio_authority&amp;step=1' );
 	}
 }
-
-function scriblio_authority_importer_init()
-{
-	$GLOBALS['authority_import'] = new Authority_Importer();
-	register_importer( 'scriblio_authority', 'Scriblio Authority CSV', 'Import Scriblio Authority records from CSV.', array( $GLOBALS['authority_import'], 'dispatch' ) );
-}
-add_action( 'admin_init', 'scriblio_authority_importer_init' );
