@@ -21,7 +21,6 @@ add_action( 'init', function() {
 
 	Authority::supported_taxonomies( array(
 		'post_tag',
-		'company',
-		'technology',
+		'category',
 	));
 });
