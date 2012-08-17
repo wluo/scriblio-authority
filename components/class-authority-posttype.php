@@ -90,7 +90,7 @@ class Authority_Posttype {
 
 		if( $return = wp_cache_get( $term->term_taxonomy_id , 'scrib_authority_ttid' ))
 			return $return;
-			
+
 		// query to find a matching authority record
 		$query = array(
 			'numberposts' => 1,
@@ -101,7 +101,8 @@ class Authority_Posttype {
 					'field' => 'id',
 					'terms' => $term->term_id,
 				)
-			)
+			),
+			'suppress_filters' => TRUE,
 		);
 
 		// fetch the authority info
@@ -263,6 +264,11 @@ class Authority_Posttype {
 
 	public function update_post_meta( $post_id , $meta_array )
 	{
+
+		// make sure meta is added to the post, not a revision
+		if ( $_post_id = wp_is_post_revision( $post_id ))
+			$post_id = $_post_id;
+
 		// the terms we'll set on this object
 		$object_terms = array();
 
@@ -327,6 +333,10 @@ class Authority_Posttype {
 		// check that this isn't an autosave
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
 		  return;
+
+		// don't run on post revisions (almost always happens just before the real post is saved)
+		if( wp_is_post_revision( $post_id ))
+			return;
 
 		// check the nonce
 		if( ! $this->verify_nonce() )
@@ -503,12 +513,20 @@ class Authority_Posttype {
 <?php
 	}
 
+	public function metab_enforce( $post )
+	{
+		echo '<a href="'. $this->enforce_authority_on_corpus_url( $post->ID ) .'" target="_blank">Enforce this authority on all posts</a>';
+	}//end metab_enforce
+
 	public function metaboxes()
 	{
 		// add metaboxes
 		add_meta_box( 'scrib-authority-primary' , 'Authoritive Term' , array( $this , 'metab_primary_term' ) , $this->post_type_name , 'normal', 'high' );
 		add_meta_box( 'scrib-authority-alias' , 'Alias Terms' , array( $this , 'metab_alias_terms' ) , $this->post_type_name , 'normal', 'high' );
 		add_meta_box( 'scrib-authority-family' , 'Family Terms' , array( $this , 'metab_family_terms' ) , $this->post_type_name , 'normal', 'high' );
+		add_meta_box( 'scrib-authority-enforce' , 'Enforce' , array( $this , 'metab_enforce' ) , $this->post_type_name , 'normal', 'low' );
+
+
 		// @TODO: need metaboxes for links and arbitrary values (ticker symbol, etc)
 
 		// remove the taxonomy metaboxes so we don't get confused
@@ -692,6 +710,22 @@ class Authority_Posttype {
 		return $suggestions;
 	}//end suggestions
 
+	// WP sometimes fails to update this count during regular operations, so this fixes that
+	// it's not actually called anywhere, though
+	function _update_term_counts()
+	{
+		global $wpdb;
+
+		$wpdb->get_results('
+			UPDATE '. $wpdb->term_taxonomy .' tt
+			SET tt.count = (
+				SELECT COUNT(*)
+				FROM '. $wpdb->term_relationships .' tr
+				WHERE tr.term_taxonomy_id = tt.term_taxonomy_id
+			)'
+		);
+	}
+
 	public function enforce_authority_on_object( $object_id )
 	{
 		// nobody wants to set terms on a revision
@@ -748,6 +782,12 @@ class Authority_Posttype {
 		}
 	}
 
+	public function enforce_authority_on_corpus_url( $post_id , $posts_per_page = 25 , $paged = 0 )
+	{
+		return admin_url('admin-ajax.php?action=scrib_enforce_authority&authority_post_id='. (int) $post_id .'&posts_per_page='. (int) $posts_per_page .'&paged='. (int) $paged );
+
+	}
+
 	public function enforce_authority_on_corpus_ajax()
 	{
 		if( $_REQUEST['authority_post_id'] && $this->get_post_meta( (int) $_REQUEST['authority_post_id'] ))
@@ -758,6 +798,15 @@ class Authority_Posttype {
 		);
 
 		print_r( $result );
+
+		if( $result->next_paged )
+		{
+?>
+<script type="text/javascript">
+window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST['authority_post_id'] , $_REQUEST['posts_per_page'] , $result->next_paged ); ?>";
+</script>
+<?php
+		}
 
 		die;
 	}
@@ -851,6 +900,8 @@ class Authority_Posttype {
 			if( $delete_object_tt_ids = array_intersect( (array) $new_object_tt_ids , (array) $delete_tt_ids ))
 				$this->delete_terms_from_object_id( $post_id , $delete_object_tt_ids );
 		}
+
+		$this->_update_term_counts();
 
 		return( (object) array( 'post_ids' => $post_ids , 'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
@@ -977,6 +1028,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			$this->enforce_authority_on_corpus( (int) $post_id , -1 );
 
 		}
+
+
+		$this->_update_term_counts();
 
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
