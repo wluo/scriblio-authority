@@ -759,9 +759,6 @@ class Authority_Posttype {
 				if( $authority->primary_term->taxonomy != $term->taxonomy )
 					$delete_terms[] = $term->term_taxonomy_id;
 
-				// add any parent terms to the list as well
-				foreach( (array) $authority->parent_terms as $parent )
-					$new_object_terms[ $parent->taxonomy ][] = (int) $parent->term_id;
 			}
 		}
 
