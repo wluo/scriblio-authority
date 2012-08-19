@@ -332,10 +332,17 @@ class Authority_Posttype {
 	{
 		// check that this isn't an autosave
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
-		  return;
+			return;
 
 		// don't run on post revisions (almost always happens just before the real post is saved)
 		if( wp_is_post_revision( $post_id ))
+			return;
+
+		// get and check the post
+		$post = get_post( $object_id );
+
+		// only work on authority posts
+		if( ! isset( $post->post_type ) || $this->post_type_name != $post->post_type )
 			return;
 
 		// check the nonce
@@ -728,9 +735,9 @@ class Authority_Posttype {
 
 	public function enforce_authority_on_object( $object_id )
 	{
-		// nobody wants to set terms on a revision
-		if( $actual_post = wp_is_post_revision( $object_id ))
-			$object_id = $actual_post;
+		// don't run on post revisions (almost always happens just before the real post is saved)
+		if( wp_is_post_revision( $post_id ))
+			return;
 
 		if( ! $object_id )
 			return;
