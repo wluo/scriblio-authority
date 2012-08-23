@@ -13,9 +13,15 @@ class Authority_Posttype {
 		add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
 		add_filter( 'wp_ajax_scrib_authority_results', array( &$this, 'authority_results' ) );                                                                                                                                                                                             
+
 		add_action( 'save_post', array( $this , 'save_post' ));
 		add_action( 'save_post', array( $this , 'enforce_authority_on_object' ) , 9 );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_scripts' ) );
+
+		add_action( 'manage_{$this->post_type_name}_posts_custom_column', array( $this, 'column' ), 10 , 2 );
+		add_action( 'manage_posts_custom_column', array( $this, 'column' ), 10 , 2 );
+		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ));
+		add_filter( 'manage_posts_columns' , array( $this, 'columns' ));
 	}
 
 	public function authority_results() {
@@ -568,7 +574,8 @@ class Authority_Posttype {
 		<?php
 	}
 
-	public function prep_sub_terms( $which, $source, $target, $delete_cache = FALSE ) {
+	public function prep_sub_terms( $which, $source, $target, $delete_cache = FALSE )
+	{
 		$target[ $which . '_terms'] = array();
 		foreach( (array) $this->parse_terms_from_string( $source[ $which . '_terms'] ) as $term )
 		{
@@ -610,6 +617,92 @@ class Authority_Posttype {
 			)
 		);
 	}
+
+	function column_primary_term( $post_id )
+	{
+		$this->get_post_meta( $post_id );
+		return '<a href="'. get_edit_post_link( $post_id ) .'">'. $this->instance['primary_term']->taxonomy .':'. $this->instance['primary_term']->slug .'</a>';
+	}
+
+	function column_alias_terms( $post_id )
+	{
+		$this->get_post_meta( $post_id );
+
+		$output = array();
+		foreach( (array) $this->instance['alias_terms'] as $term )
+			$output[] = $term->taxonomy .':'. $term->slug;
+
+		return '<a href="'. get_edit_post_link( $post_id ) .'">'. implode( ', ' , $output ) .'</a>';
+	}
+
+	function column_parent_terms( $post_id )
+	{
+		$this->get_post_meta( $post_id );
+
+		$output = array();
+		foreach( (array) $this->instance['parent_terms'] as $term )
+			$output[] = $term->taxonomy .':'. $term->slug;
+
+		return '<a href="'. get_edit_post_link( $post_id ) .'">'. implode( ', ' , $output ) .'</a>';
+	}
+
+	function column_child_terms( $post_id )
+	{
+		$this->get_post_meta( $post_id );
+
+		$output = array();
+		foreach( (array) $this->instance['child_terms'] as $term )
+			$output[] = $term->taxonomy .':'. $term->slug;
+
+		return '<a href="'. get_edit_post_link( $post_id ) .'">'. implode( ', ' , $output ) .'</a>';
+	}
+
+	function column( $column , $post_id )
+	{
+		// only operate on our posts
+		// strangely, this filter doesn't appear to be working
+		// http://codex.wordpress.org/Plugin_API/Action_Reference/manage_$post_type_posts_custom_column
+		if( ! isset( $_GET['post_type'] ) || $this->post_type_name != $_GET['post_type'] )
+			return;
+
+		switch( $column )
+		{
+			case $this->id_base .'_primary_term':
+				echo $this->column_primary_term( $post_id );
+				break;
+			case $this->id_base .'_alias_terms':
+				echo $this->column_alias_terms( $post_id );
+				break;
+			case $this->id_base .'_parent_terms':
+				echo $this->column_parent_terms( $post_id );
+				break;
+			case $this->id_base .'_child_terms':
+				echo $this->column_child_terms( $post_id );
+				break;
+		}
+
+		return $content;
+	}
+
+	function columns( $columns )
+	{
+		// only operate on our posts
+		// strangely, this filter doesn't appear to be working
+		// http://codex.wordpress.org/Plugin_API/Filter_Reference/manage_$post_type_posts_columns
+		if( ! isset( $_GET['post_type'] ) || $this->post_type_name != $_GET['post_type'] )
+			return;
+
+		// unset the unwanted columns
+		unset( $columns['categories'] , $columns['tags'] , $columns['date'] );
+
+		// our columns are cooler than the other columns
+		$columns[ $this->id_base .'_primary_term' ] = 'Primary Term';
+		$columns[ $this->id_base .'_alias_terms' ] = 'Alias Terms';
+		$columns[ $this->id_base .'_parent_terms' ] = 'Parent Terms';
+		$columns[ $this->id_base .'_child_terms' ] = 'Child Terms';
+ 
+		return $columns;
+  	}
 
 	public function suggestions( $s = '' , $_taxonomy = array() )
 	{
