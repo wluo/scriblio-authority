@@ -12,7 +12,9 @@ class Authority_Posttype {
 		add_filter( 'template_redirect', array( $this, 'template_redirect' ) , 1 );
 		add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
-		add_filter( 'wp_ajax_scrib_authority_results', array( &$this, 'authority_results' ) );                                                                                                                                                                                             
+		add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );                                                                                                                                                                                             
+
+		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );                                                                                                                                                                                             
 
 		add_action( 'save_post', array( $this , 'save_post' ));
 		add_action( 'save_post', array( $this , 'enforce_authority_on_object' ) , 9 );
@@ -1132,4 +1134,68 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
 
+	public function term_report_ajax()
+	{
+		if( ! current_user_can( 'edit_posts' ))
+			return;
+
+		// sanitize the taxonomy we're reporting on
+		$taxonomy = taxonomy_exists( $_GET['taxonomy'] ) ? $_GET['taxonomy'] : 'post_tag';
+
+		// set the columns for the report
+		$columns = array(
+			'term',
+			'slug',
+			'count',
+			'authoritative_term',
+			'authority_record',
+			'parent_terms',
+			'child_terms',
+		);
+
+		// get the CSV class
+		require_once dirname( __FILE__ ) . '/class-authority-csv.php';
+		$csv = new Authority_Csv( $taxonomy .'-'. date( 'r' ) , $columns );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT t.name , t.term_id , t.slug , tt.taxonomy , tt.term_taxonomy_id , tt.count
+			FROM $wpdb->term_taxonomy tt
+			JOIN $wpdb->terms t ON t.term_id = tt.term_id
+			WHERE taxonomy = %s
+			ORDER BY tt.count DESC
+			LIMIT 10000
+		" , $taxonomy );
+		$terms = $wpdb->get_results( $query );
+
+		// iterate through the results and output each row as CSV
+		foreach( $terms as $term )
+		{
+			$primary = $parents = $children = array();
+
+			$authority = $this->get_term_authority( $term );
+
+			$primary = isset( $authority->primary_term ) ? $authority->primary_term->taxonomy .':'. $authority->primary_term->slug : '';
+
+			foreach( (array) $authority->parent_terms as $term )
+				$parents[] = $term->taxonomy .':'. $term->slug;
+
+			foreach( (array) $authority->child_terms as $term )
+				$children[] = $term->taxonomy .':'. $term->slug;
+
+			$csv->add( array(
+				'term' => $term->name,
+				'slug' => $term->slug,
+				'count' => $term->count,
+				'authoritative_term' => $primary,
+				'authority_record' => get_edit_post_link( (int) $authority->post_id , '' ),
+				'parent_terms' => implode( ', ' , (array) $parents ),
+				'child_terms' => implode( ', ' , (array) $children ),
+			));
+		}
+
+		die;
+	}
 }//end Authority_Posttype class
+
