@@ -1148,9 +1148,10 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			'slug',
 			'count',
 			'authoritative_term',
-			'authority_record',
 			'parent_terms',
 			'child_terms',
+			'edit_term',
+			'edit_authority_record',
 		);
 
 		// get the CSV class
@@ -1189,9 +1190,10 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 				'slug' => $term->slug,
 				'count' => $term->count,
 				'authoritative_term' => $primary,
-				'authority_record' => get_edit_post_link( (int) $authority->post_id , '' ),
 				'parent_terms' => implode( ', ' , (array) $parents ),
 				'child_terms' => implode( ', ' , (array) $children ),
+				'edit_term' => get_edit_term_link( $term->term_id, $term->taxonomy ),
+				'edit_authority_record' => get_edit_post_link( (int) $authority->post_id , '' ),
 			));
 		}
 
