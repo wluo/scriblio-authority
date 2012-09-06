@@ -12,7 +12,7 @@ class Authority_Posttype {
 		add_filter( 'template_redirect', array( $this, 'template_redirect' ) , 1 );
 		add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
-		add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );                                                                                                                                                                                             
+		add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );
 		add_filter( 'wp_ajax_scrib_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );                                                                                                                                                                                             
 
 		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );                                                                                                                                                                                             
@@ -23,8 +23,8 @@ class Authority_Posttype {
 
 		add_action( 'manage_{$this->post_type_name}_posts_custom_column', array( $this, 'column' ), 10 , 2 );
 		add_action( 'manage_posts_custom_column', array( $this, 'column' ), 10 , 2 );
-		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ));
-		add_filter( 'manage_posts_columns' , array( $this, 'columns' ));
+		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ) , 11 );
+		add_filter( 'manage_posts_columns' , array( $this, 'columns' ) , 11 );
 	}
 
 	public function authority_results()
@@ -690,14 +690,17 @@ class Authority_Posttype {
 
 	function columns( $columns )
 	{
+
 		// only operate on our posts
 		// strangely, this filter doesn't appear to be working
 		// http://codex.wordpress.org/Plugin_API/Filter_Reference/manage_$post_type_posts_columns
 		if( ! isset( $_GET['post_type'] ) || $this->post_type_name != $_GET['post_type'] )
-			return;
+			return $columns;
 
-		// unset the unwanted columns
-		unset( $columns['categories'] , $columns['tags'] , $columns['date'] );
+		// preserve a couple columns
+		// this is especially aggressive in removing columns added indiscriminately in other plugins
+		// that's also why the filter priority is 11, so we can remove other plugins' cruft (i'm looking at you co-authors-plus)
+		$columns = array_intersect_key( $columns , array( 'cb' => TRUE , 'title' => TRUE ));
 
 		// our columns are cooler than the other columns
 		$columns[ $this->id_base .'_primary_term' ] = 'Primary Term';
@@ -1138,8 +1141,14 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 
 	public function term_report_ajax()
 	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=scrib_term_report&taxonomy=post_tag
+
 		if( ! current_user_can( 'edit_posts' ))
 			return;
+
+		// this can use a lot of memory and time
+		ini_set( 'memory_limit', '1024M' );
+		set_time_limit( 900 ); 
 
 		// sanitize the taxonomy we're reporting on
 		$taxonomy = taxonomy_exists( $_GET['taxonomy'] ) ? $_GET['taxonomy'] : 'post_tag';
@@ -1149,7 +1158,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			'term',
 			'slug',
 			'count',
+			'status',
 			'authoritative_term',
+			'alias_terms',
 			'parent_terms',
 			'child_terms',
 			'edit_term',
@@ -1167,31 +1178,53 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			FROM $wpdb->term_taxonomy tt
 			JOIN $wpdb->terms t ON t.term_id = tt.term_id
 			WHERE taxonomy = %s
+			AND tt.count > 0
 			ORDER BY tt.count DESC
-			LIMIT 10000
+			LIMIT 3000
 		" , $taxonomy );
 		$terms = $wpdb->get_results( $query );
 
 		// iterate through the results and output each row as CSV
 		foreach( $terms as $term )
 		{
-			$primary = $parents = $children = array();
+			// each iteration increments the time limit just a bit (until we run out of memory)
+			set_time_limit( 15 );
+
+			$status = $primary = $aliases = $parents = $children = array();
 
 			$authority = $this->get_term_authority( $term );
 
+			if( isset( $authority->primary_term ) && ( $authority->primary_term->term_taxonomy_id == $term->term_taxonomy_id ))
+			{
+				$status = 'prime';
+			}
+			elseif( isset( $authority->primary_term ))
+			{
+				$status = 'alias';
+			}
+			else
+			{
+				$status = '';
+			}
+
 			$primary = isset( $authority->primary_term ) ? $authority->primary_term->taxonomy .':'. $authority->primary_term->slug : '';
 
-			foreach( (array) $authority->parent_terms as $term )
-				$parents[] = $term->taxonomy .':'. $term->slug;
+			foreach( (array) $authority->alias_terms as $_term )
+				$aliases[] = $_term->taxonomy .':'. $_term->slug;
 
-			foreach( (array) $authority->child_terms as $term )
-				$children[] = $term->taxonomy .':'. $term->slug;
+			foreach( (array) $authority->parent_terms as $_term )
+				$parents[] = $_term->taxonomy .':'. $_term->slug;
+
+			foreach( (array) $authority->child_terms as $_term )
+				$children[] = $_term->taxonomy .':'. $_term->slug;
 
 			$csv->add( array(
-				'term' => $term->name,
+				'term' => html_entity_decode( $term->name ),
 				'slug' => $term->slug,
 				'count' => $term->count,
+				'status' => $status,
 				'authoritative_term' => $primary,
+				'alias_terms' => implode( ', ' , (array) $aliases ),
 				'parent_terms' => implode( ', ' , (array) $parents ),
 				'child_terms' => implode( ', ' , (array) $children ),
 				'edit_term' => get_edit_term_link( $term->term_id, $term->taxonomy ),
@@ -1201,7 +1234,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 
 		die;
 	}
-
 
 	public function term_suffix_cleaner_ajax()
 	{
@@ -1283,6 +1315,3 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 	}
 
 }//end Authority_Posttype class
-
-
-
