@@ -30,17 +30,17 @@ License: GPL2
 require_once dirname( __FILE__ ) . '/components/class-authority.php';
 require_once dirname( __FILE__ ) . '/components/class-authority-posttype.php';
 require_once dirname( __FILE__ ) . '/components/class-authority-easyterms.php';
-//require_once dirname( __FILE__ ) . '/components/class-authority-csv-parser.php';
 
-add_action( 'init', function()
+Authority::init();
+
+Authority::easy_terms()->add_taxonomy( 'post_tag' );
+Authority::easy_terms()->add_taxonomy( 'category' );
+
+add_action( 'init' , 'scriblio_authority_init' );
+function scriblio_authority_init()
 {
-	Authority::init();
-
-	Authority::easy_terms()->add_taxonomy( 'post_tag' );
-	Authority::easy_terms()->add_taxonomy( 'category' );
-
 	Authority::supported_taxonomies( array(
 		'post_tag',
 		'category',
 	));
-});
+}

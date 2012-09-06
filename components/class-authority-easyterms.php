@@ -35,11 +35,12 @@ class Authority_EasyTerms
 	public function __construct()
 	{
 		add_action( 'init', array( $this, 'add_buttons' ) );
+		add_action( 'init', array( $this, 'add_shortcodes' ) );
+
 		add_action( 'admin_enqueue_scripts', array( $this, 'action_enqueue_scripts' ) );
 		add_action( 'admin_print_scripts', array( $this, 'action_print_scripts' ), 1 );
 		add_action( 'save_post', array( $this, 'parse_shortcodes' ), 10, 2 );
 
-		add_action( 'init', array( $this, 'add_shortcodes' ) );
 	}
 
 	public function add_taxonomy( $taxonomy )
@@ -113,11 +114,21 @@ class Authority_EasyTerms
 
 	public function parse_shortcodes( $post_ID, $post )
 	{
+		// only operate on proper posts
+		// @TODO: make this configurable
 		if( 'post' !== $post->post_type )
 			return;
 
+		// check that this isn't an autosave
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) 
+			return;
+
+		// don't run on post revisions (almost always happens just before the real post is saved)
+		if( wp_is_post_revision( $post->ID ))
+			return;
+
 		$this->is_save_post = true;
-		$this->post_ID = $post_ID;
+		$this->post_ID = $post->ID;
 		$this->post = $post;
 
 		$content = $post->post_content;
