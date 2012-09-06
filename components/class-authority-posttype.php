@@ -13,6 +13,7 @@ class Authority_Posttype {
 		add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
 		add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );                                                                                                                                                                                             
+		add_filter( 'wp_ajax_scrib_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );                                                                                                                                                                                             
 
 		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );                                                                                                                                                                                             
 
@@ -26,7 +27,8 @@ class Authority_Posttype {
 		add_filter( 'manage_posts_columns' , array( $this, 'columns' ));
 	}
 
-	public function authority_results() {
+	public function authority_results()
+	{
 		$s = trim( $_GET['s'] );
 		$suggestions = $this->suggestions( $s );
 
@@ -1199,5 +1201,88 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 
 		die;
 	}
+
+
+	public function term_suffix_cleaner_ajax()
+	{
+		if( ! current_user_can( 'manage_options' ))
+			return;
+
+		// don't bother updating term counts yet, it'll just slow us down and we have so much to do
+		wp_defer_term_counting( TRUE );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT * 
+			FROM(
+				SELECT *
+				FROM $wpdb->terms
+				WHERE 1=1
+				AND slug REGEXP '-([0-9]*)$'
+				AND name NOT REGEXP '[0-9]$'
+			) as t
+			JOIN $wpdb->term_taxonomy tt ON tt.term_id = t.term_id
+			ORDER BY t.name, tt.term_taxonomy_id
+		" , $taxonomy );
+		$terms = $wpdb->get_results( $query );
+
+		// don't bother if we have no terms
+		if( ! count( (array) $terms ))
+		{
+			echo 'Yay, no ugly suffixed terms found!';
+			die;
+		}
+
+		foreach( (array) $terms as $term )
+		{
+
+			// get a clean version of the term slug without a numeric suffix
+			$clean_slug = sanitize_title( $term->name );
+
+			// get a term_id for the slug without a suffix
+			if( $alternate_term = get_term_by( 'slug' , $clean_slug , $term->taxonomy ))
+			{
+				$alternate_term_id = (int) $alternate_term->term_id;
+			}
+			else
+			{
+				$alternate_term_id = (int) term_exists( $clean_slug );
+			}
+
+			// short cirtcuit if we didn't get a term id
+			if( ! $alternate_term_id )
+			{
+				echo '<h3>No term ID found for '. $clean_slug .'</h3>'; 
+				continue;
+			}
+
+			// we found a match, let's report it
+			echo '<h3>Cleaned '. $term->slug .' to get '. $clean_slug .'</h3>'; 
+
+			// get all the posts with the ugly term, update them with the clean term
+			$posts = get_objects_in_term( $term->term_id , $term->taxonomy );
+			echo '<p>Updating '. count( $posts ) .' posts:</p><ul>';
+			foreach( $posts as $post_id )
+			{
+				wp_set_object_terms( $post_id, $alternate_term_id, $term->taxonomy, TRUE );
+				echo '<li>Updated post id <a href="'. get_edit_post_link( $post_id ) .'">'. $post_id .'</a> with term '. $clean_slug .'</li>'; 
+			}
+			echo '</ul>';
+
+			// be tidy
+			wp_delete_term( $term->term_id, $term->taxonomy );
+
+		}
+
+		// be courteous
+		$this->_update_term_counts();
+
+		// know when to stop
+		die;
+	}
+
 }//end Authority_Posttype class
+
+
 
