@@ -1256,7 +1256,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 			) as t
 			JOIN $wpdb->term_taxonomy tt ON tt.term_id = t.term_id
 			ORDER BY t.name, tt.term_taxonomy_id
-		" , $taxonomy );
+		");
 		$terms = $wpdb->get_results( $query );
 
 		// don't bother if we have no terms
@@ -1268,43 +1268,47 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 
 		foreach( (array) $terms as $term )
 		{
-
 			// get a clean version of the term slug without a numeric suffix
 			$clean_slug = sanitize_title( $term->name );
 
-			// get a term_id for the slug without a suffix
+			// check to see if there's an existing term taxonomy record for the clean term
 			if( $alternate_term = get_term_by( 'slug' , $clean_slug , $term->taxonomy ))
 			{
+				echo '<h3>Other term_taxonomy_record fount for  '. $term->slug .': '. $alternate_term->slug .'</h3>'; 
 				$alternate_term_id = (int) $alternate_term->term_id;
+
+				// get all the posts with the ugly term, update them with the clean term
+				$posts = get_objects_in_term( $term->term_id , $term->taxonomy );
+				echo '<p>Updating '. count( $posts ) .' posts:</p><ul>';
+				foreach( $posts as $post_id )
+				{
+					wp_set_object_terms( $post_id, $alternate_term->term_id, $term->taxonomy, TRUE );
+					echo '<li>Updated post id <a href="'. get_edit_post_link( $post_id ) .'">'. $post_id .'</a> with term '. $clean_slug .'</li>'; 
+				}
+				echo '</ul>';
+	
+				// be tidy
+				wp_delete_term( $term->term_id, $term->taxonomy );
 			}
+			// okay, lets now see if the clean term exists in the term table at all and update the existing term taxonomy record with it
+			else if( $alternate_term_id = (int) term_exists( $clean_slug ))
+			{
+				echo '<h3>Reassigning term_taxonomy record from '. $term->slug .' to  '. $clean_slug .'</h3>'; 
+
+				$query = $wpdb->prepare( "
+					UPDATE $wpdb->term_taxonomy AS tt
+					SET tt.term_id = %d
+					WHERE tt.term_taxonomy_id = %d
+				" , $alternate_term_id , $term->term_taxonomy_id );
+				$wpdb->get_results( $query );
+				clean_term_cache( $term->term_id , $term->taxonomy );
+			}
+			// crap, didn't find a clean term, how did we get here?
 			else
 			{
-				$alternate_term_id = (int) term_exists( $clean_slug );
-			}
-
-			// short cirtcuit if we didn't get a term id
-			if( ! $alternate_term_id )
-			{
-				echo '<h3>No term ID found for '. $clean_slug .'</h3>'; 
+				echo '<h3>No alternate found for '. $term->slug .'</h3>'; 
 				continue;
 			}
-
-			// we found a match, let's report it
-			echo '<h3>Cleaned '. $term->slug .' to get '. $clean_slug .'</h3>'; 
-
-			// get all the posts with the ugly term, update them with the clean term
-			$posts = get_objects_in_term( $term->term_id , $term->taxonomy );
-			echo '<p>Updating '. count( $posts ) .' posts:</p><ul>';
-			foreach( $posts as $post_id )
-			{
-				wp_set_object_terms( $post_id, $alternate_term_id, $term->taxonomy, TRUE );
-				echo '<li>Updated post id <a href="'. get_edit_post_link( $post_id ) .'">'. $post_id .'</a> with term '. $clean_slug .'</li>'; 
-			}
-			echo '</ul>';
-
-			// be tidy
-			wp_delete_term( $term->term_id, $term->taxonomy );
-
 		}
 
 		// be courteous
