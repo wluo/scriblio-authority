@@ -1011,7 +1011,7 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 
 		$this->_update_term_counts();
 
-		return( (object) array( 'post_ids' => $post_ids , 'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
+		return( (object) array( 'post_ids' => $post_ids , 'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) >= $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
 
 	public function create_authority_record( $primary_term , $alias_terms )

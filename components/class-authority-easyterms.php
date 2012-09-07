@@ -39,7 +39,7 @@ class Authority_EasyTerms
 
 		add_action( 'admin_enqueue_scripts', array( $this, 'action_enqueue_scripts' ) );
 		add_action( 'admin_print_scripts', array( $this, 'action_print_scripts' ), 1 );
-		add_action( 'save_post', array( $this, 'parse_shortcodes' ), 10, 2 );
+		add_action( 'save_post', array( $this, 'parse_shortcodes' ), 3, 2 );
 
 	}
 
