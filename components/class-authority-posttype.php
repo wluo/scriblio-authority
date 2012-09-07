@@ -886,7 +886,7 @@ class Authority_Posttype {
 		}
 	}
 
-	public function enforce_authority_on_corpus_url( $post_id , $posts_per_page = 25 , $paged = 0 )
+	public function enforce_authority_on_corpus_url( $post_id , $posts_per_page = 5 , $paged = 0 )
 	{
 		return admin_url('admin-ajax.php?action=scrib_enforce_authority&authority_post_id='. (int) $post_id .'&posts_per_page='. (int) $posts_per_page .'&paged='. (int) $paged );
 
@@ -957,35 +957,39 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		foreach( $authority['alias_terms'] as $term )
 			$search_terms[ $term->taxonomy ][] = (int) $term->term_id;
 
-		// construct the partial taxonomy query for each named taxonomy
-		$tax_query = array( 'relation' => 'OR' );
+		// get post types, exclude this post type
+		$post_types = get_post_types( array( 'public' => TRUE ));
+		unset( $post_types[ $this->post_type_name ] );
+
+		// do each taxonomy as a separate query to limit the complexity of each query
+		$post_ids = array();
 		foreach( $search_terms as $k => $v )
 		{
+			$tax_query = array( 'relation' => 'OR' );
 			$tax_query[] = array(
 				'taxonomy' => $k,
 				'field' => 'id',
 				'terms' => $v,
 				'operator' => 'IN',
 			);
+
+			// construct a complete query
+			$query = array(
+				'posts_per_page' => (int) $posts_per_page,
+				'paged' => (int) $paged,
+				'post_type' => $post_types,
+				'tax_query' => $tax_query,
+				'fields' => 'ids',
+			);
+
+			// get a batch of posts
+			$post_ids = array_merge( $post_ids , get_posts( $query ));
 		}
-
-		$post_types = get_post_types( array( 'public' => TRUE ));
-		unset( $post_types[ $this->post_type_name ] );
-
-		// construct a complete query
-		$query = array(
-			'posts_per_page' => (int) $posts_per_page,
-			'paged' => (int) $paged,
-			'post_type' => $post_types,
-			'tax_query' => $tax_query,
-			'fields' => 'ids',
-		);
-
-		// get a batch of posts
-		$post_ids = get_posts( $query );
 
 		if( ! count( $post_ids ))
 			return FALSE;
+
+		$post_ids = array_unique( $post_ids );
 
 		foreach( (array) $post_ids as $post_id )
 		{
