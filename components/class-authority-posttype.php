@@ -5,7 +5,8 @@ class Authority_Posttype {
 	public $post_type_name = 'scrib-authority';
 	public $post_meta_key = 'scrib-authority';
 	public $cache_ttl = 259183; // a prime number slightly less than 3 days
-	public $taxonomies = array()
+	public $taxonomies = array(); // unsanitized array of supported taxonomies by tax slug
+	public $taxonomy_objects = array(); // sanitized and validated array of taxonomy objects
 
 	public function __construct()
 	{
@@ -26,41 +27,6 @@ class Authority_Posttype {
 		add_action( 'manage_posts_custom_column', array( $this, 'column' ), 10 , 2 );
 		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ) , 11 );
 		add_filter( 'manage_posts_columns' , array( $this, 'columns' ) , 11 );
-	}
-
-	public function supported_taxonomies( $support = null )
-	{
-		if ( $support )
-		{
-			$this->taxonomies = get_taxonomies( array( 'public' => true ), 'objects' );
-
-			$purge = array_diff( array_keys( $this->taxonomies ), $support );
-
-			foreach( $purge as $remove )
-			{
-				unset( $this->taxonomies[ $remove ] );
-			}//end foreach
-
-			// sort taxonomies by the singular name
-			uasort( $this->taxonomies, array( $this , '_sort_taxonomies' ));
-		}//end if
-
-		return $this->taxonomies;
-	}//end supported_taxonomies
-
-	public function _sort_taxonomies( $a , $b )
-	{
-		if ( $a->labels->singular_name == $b->labels->singular_name )
-		{
-			return 0;
-		}//end if
-
-		if ( 'post_tag' == $b->name  )
-		{
-			return -1;
-		}//end if
-
-		return $a->labels->singular_name < $b->labels->singular_name ? -1 : 1;
 	}
 
 	public function authority_results()
@@ -455,7 +421,7 @@ class Authority_Posttype {
 	public function metab_alias_terms( $post )
 	{
 		$taxonomies = array();
-		$taxonomy_objects = Authority::supported_taxonomies();
+		$taxonomy_objects = $this->supported_taxonomies();
 		foreach( $taxonomy_objects as $key => $taxonomy ) {
 			if(
 				'category' == $key ||
@@ -583,7 +549,7 @@ class Authority_Posttype {
 		// @TODO: need metaboxes for links and arbitrary values (ticker symbol, etc)
 
 		// remove the taxonomy metaboxes so we don't get confused
-		$taxonomies = Authority::supported_taxonomies();
+		$taxonomies = $this->supported_taxonomies();
 		foreach( $taxonomies as $taxomoy )
 		{
 			if( $taxomoy->hierarchical )
@@ -595,7 +561,7 @@ class Authority_Posttype {
 
 	public function control_taxonomies( $field_name )
 	{
-		$taxonomies = Authority::supported_taxonomies();
+		$taxonomies = $this->supported_taxonomies();
 		ksort( $taxonomies );
 
 		$tpl = new StdClass;
@@ -635,9 +601,49 @@ class Authority_Posttype {
 		return $target;
 	}//end prep_sub_terms
 
+	public function add_taxonomy( $taxonomy )
+	{
+		$this->taxonomies[ $taxonomy ] = $taxonomy;
+	}
+
+	public function supported_taxonomies( $support = null )
+	{
+		if ( $support )
+		{
+			$this->taxonomy_objects = get_taxonomies( array( 'public' => true ), 'objects' );
+
+			$purge = array_diff( array_keys( $this->taxonomy_objects ), $support );
+
+			foreach( $purge as $remove )
+			{
+				unset( $this->taxonomy_objects[ $remove ] );
+			}//end foreach
+
+			// sort taxonomies by the singular name
+			uasort( $this->taxonomy_objects, array( $this , '_sort_taxonomies' ));
+		}//end if
+
+		return $this->taxonomy_objects;
+	}//end supported_taxonomies
+
+	public function _sort_taxonomies( $a , $b )
+	{
+		if ( $a->labels->singular_name == $b->labels->singular_name )
+		{
+			return 0;
+		}//end if
+
+		if ( 'post_tag' == $b->name  )
+		{
+			return -1;
+		}//end if
+
+		return $a->labels->singular_name < $b->labels->singular_name ? -1 : 1;
+	}
+
 	public function register_post_type()
 	{
-		$taxonomies = Authority::supported_taxonomies();
+		$taxonomies = $this->supported_taxonomies( $this->taxonomies );
 
 		register_post_type( $this->post_type_name,
 			array(
@@ -776,7 +782,7 @@ class Authority_Posttype {
 		else
 		{
 			// @TODO: this used to be configurable in the dashboard.
-			$taxonomy = array_keys( Authority::supported_taxonomies() );
+			$taxonomy = array_keys( $this->supported_taxonomies() );
 		}//end else
 
 		// generate a key we can use to cache these results
@@ -886,7 +892,7 @@ class Authority_Posttype {
 			return;
 
 		// get the terms to work with
-		$terms = wp_get_object_terms( $object_id , array_keys( Authority::supported_taxonomies() ) );
+		$terms = wp_get_object_terms( $object_id , array_keys( $this->supported_taxonomies() ) );
 
 		$delete_terms = array();
 
@@ -1208,8 +1214,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=scrib_create_auth
 		);
 
 		// get the CSV class
-		require_once dirname( __FILE__ ) . '/class-authority-csv.php';
-		$csv = new Authority_Csv( $taxonomy .'-'. date( 'r' ) , $columns );
+		$csv = new_authority_csv( $taxonomy .'-'. date( 'r' ) , $columns );
 
 		// prepare and execute the query
 		global $wpdb;

@@ -91,7 +91,7 @@ class Authority_Importer
 	}
 
 	public static function init() {
-		register_importer( 'scriblio_authority', 'Scriblio Authority CSV', 'Import Scriblio Authority records from CSV.', array( Authority::importer(), 'dispatch' ) );
+		register_importer( 'scriblio_authority', 'Scriblio Authority CSV', 'Import Scriblio Authority records from CSV.', array( $this , 'dispatch' ) );
 	}//end init
 
 	public function next( $position = 0 )
@@ -189,10 +189,10 @@ class Authority_Importer
 		$primary_term = $this->get_or_insert_term( $primary_term_name, $taxonomy );
 		$alias_term = $this->get_or_insert_term( $alias_term_name, $taxonomy );
 
-		if ( false === ( $term_authority = Authority::post_type()->get_term_authority( $primary_term ) ) )
+		if ( false === ( $term_authority = authority_record()->get_term_authority( $primary_term ) ) )
 		{
 			// Creating a new authority record
-			$post_id = Authority::post_type()->create_authority_record( $primary_term, array( $alias_term ) );
+			$post_id = authority_record()->create_authority_record( $primary_term, array( $alias_term ) );
 
 			if( FALSE === $post_id )
 			{
@@ -202,10 +202,10 @@ class Authority_Importer
 		else
 		{
 			// Adding an alias to an existing record
-			if( ! Authority::post_type()->authority_has_alias( $term_authority, $alias_term ) )
+			if( ! authority_record()->authority_has_alias( $term_authority, $alias_term ) )
 			{
 				$term_authority->alias_terms[] = $alias_term;
-				Authority::post_type()->update_post_meta( $term_authority->post_id, $term_authority );
+				authority_record()->update_post_meta( $term_authority->post_id, $term_authority );
 			}
 		}
 	}
