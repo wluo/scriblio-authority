@@ -463,12 +463,6 @@ class Authority_Posttype {
 
 		$this->get_post_meta( $post->ID );
 
-		$tpl = new StdClass;
-		$tpl->field_id = $this->get_field_id( 'primary_termname' );
-		$tpl->field_name = $this->get_field_name( 'primary_termname' );
-		$tpl->primary_termname = $this->instance['primary_termname'];
-		$tpl->edit_term_link = get_edit_term_link( $this->instance['primary_term']->term_id , $this->instance['primary_term']->taxonomy );
-
 		$taxonomies = array();
 		$taxonomy_objects = $this->supported_taxonomies();
 		foreach( $taxonomy_objects as $key => $taxonomy ) {
