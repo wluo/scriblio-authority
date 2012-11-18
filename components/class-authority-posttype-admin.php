@@ -312,32 +312,16 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	public function metab_coincidences( $post )
 	{
-		$coincidences = array_slice( (array) $this->get_related_terms_for_authority( $post->ID ) , 0 , 23 );
+		$coincidences = array_slice( (array) $this->get_related_terms_for_authority( $post->ID ) , 0 , 37 );
 ?>
-		<p>In addition to the terms entered above, <?php echo '<a href="'. get_term_link( $this->instance['primary_term'] ) .'" target="_blank">'. $this->instance['primary_term']->taxonomy .':'. $this->instance['primary_term']->slug .'</a>'; ?> is frequently used with the following terms:</p>
+		<p>In addition to the terms entered above, <?php echo '<a href="'. get_term_link( $this->instance['primary_term'] ) .'" target="_blank">'. $this->instance['primary_term']->name .'</a>'; ?> is frequently used with the following terms:</p>
 <?php
 
-		echo '<ol>';
-		foreach( $coincidences as $coincidence )
+		foreach( $coincidences as $k => $v )
 		{
-			$other_terms_string = '';
-			if( isset( $coincidence->authority_synonyms ))
-			{				
-				$other_terms = array();
-				foreach( $coincidence->authority_synonyms as $k => $v )
-				{
-					$other_terms[] = '<a href="'. get_term_link( $v ) .'" target="_blank">'. $v->taxonomy .':'. $v->slug .'</a>';
-				}
-	
-				if( count( $other_terms ))
-				{
-					$other_terms_string = ' (including '. implode( ', ' , $other_terms ) .')';
-				}
-			}
-
-			echo '<li><a href="'. get_term_link( $coincidence ) .'" target="_blank">'. $coincidence->taxonomy .':'. $coincidence->slug .'</a>'. $other_terms_string .'</li>';
+			$coincidences[ $k ]->link = get_term_link( $v );
 		}
-		echo '</ol>';
+		echo wp_generate_tag_cloud( $coincidences );
 	}//end metab_coincidences
 
 	public function metab_enforce( $post )
