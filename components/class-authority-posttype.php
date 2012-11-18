@@ -125,7 +125,7 @@ class Authority_Posttype {
 
 		// query to find a matching authority record
 		$query = array(
-			'numberposts' => 1,
+			'numberposts' => 10,
 			'post_type' => $this->post_type_name,
 			'tax_query' => array(
 				array(
@@ -153,6 +153,14 @@ class Authority_Posttype {
 
 			$return = array_intersect_key( (array) $authority_meta , $return );
 			$return['post_id'] = $authority[0]->ID;
+
+			if( 1 < count( $authority ))
+			{
+				foreach( $authority as $conflict )
+				{
+					$return['conflict_ids'][] = $conflict->ID;
+				}
+			}
 
 			wp_cache_set( $term->term_taxonomy_id , (object) $return , 'scrib_authority_ttid' , $this->cache_ttl );
 			return (object) $return;
@@ -496,14 +504,28 @@ class Authority_Posttype {
 		$json = array();
 		if ( $this->instance['alias_terms'] )
 		{
+			$authority_conflicts = array();
 			foreach( $this->instance['alias_terms'] as $term )
 			{
+				// make sure this is a working taxonomy
 				if ( ! $taxonomies[ $term->taxonomy ] )
 				{
 					continue;
 				}//end if
 
 				$aliases[ $term->term_taxonomy_id ] = $term->taxonomy .':'. $term->slug;
+
+				// check for any conflicts with this term
+				$authority_check = $this->get_term_authority( $term );
+				if ( isset( $authority_check->conflict_ids ) )
+				{
+					$authority_conflicts[] = (object) array(
+						'term' => $term,
+						'post_ids' => $authority_check->conflict_ids,
+					);
+				}
+
+				// add this to the JS var of terms already on the record
 				$json[] = array(
 					'taxonomy' => $taxonomies[ $term->taxonomy ],
 					'term' => $term->name,
@@ -528,9 +550,27 @@ class Authority_Posttype {
 		</script>
 		<label class="screen-reader-text" for="<?php echo $this->get_field_id( 'alias_terms' ); ?>">Alias terms</label><textarea rows="3" cols="50" name="<?php echo $this->get_field_name( 'alias_terms' ); ?>" id="<?php echo $this->get_field_id( 'alias_terms' ); ?>"><?php echo implode( ', ' , (array) $aliases ); ?></textarea>
 
-<p>An example set of alias terms for the term company:Apple Inc. might include company:Apple Computer, company:AAPL, company:Apple, tag:Apple Computer</p>
-<p>Tech requirement: in addition to automatically suggesting terms (and their taxonomy), we'll have to check that the term is not already associated with another authority record.</p>
-<?php
+		<?php
+		if( count( $authority_conflicts ))
+		{
+			echo '<h4>Ambiguous term warning!</h4><ul>';
+			foreach( $authority_conflicts as $conflict )
+			{
+				echo '<li>&#147;'. $conflict->term->name .'&#148; is referenced in '. ( count( $conflict->post_ids ) - 1 ) .' additional authority records<ol>';
+	
+				foreach( $conflict->post_ids as $conflict_post_id )
+				{
+					if( $post->ID == $conflict_post_id )
+					{
+						continue;
+					}
+
+					echo '<li><a href="'. get_edit_post_link( $conflict_post_id ) .'">'.  get_the_title( $conflict_post_id ) .'</a></li>';
+				}
+				echo '</ol></li>';
+			}
+			echo '</ul>';
+		}
 	}
 
 	public function metab_family_prep( $which, $collection )
