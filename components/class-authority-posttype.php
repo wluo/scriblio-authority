@@ -195,8 +195,8 @@ class Authority_Posttype {
 		$queried_object = get_queried_object();
 
 		// is this a request for our post type? redirect to the taxonomy permalink if so
-		if ( 
-			isset( $queried_object->post_type ) && 
+		if (
+			isset( $queried_object->post_type ) &&
 			( $this->post_type_name == $queried_object->post_type )
 		)
 		{
@@ -206,7 +206,7 @@ class Authority_Posttype {
 
 		// is this a taxonomy request? return if not
 		if( ! isset( $queried_object->term_id ))
-		{			
+		{
 			return;
 		}
 
@@ -588,7 +588,7 @@ class Authority_Posttype {
 			foreach( $authority_conflicts as $conflict )
 			{
 				echo '<li>&#147;'. $conflict->term->name .'&#148; is referenced in '. ( count( $conflict->post_ids ) - 1 ) .' additional authority records<ol>';
-	
+
 				foreach( $conflict->post_ids as $conflict_post_id )
 				{
 					if( $post->ID == $conflict_post_id )
@@ -665,7 +665,7 @@ class Authority_Posttype {
 		$search_ttids = array();
 		if( isset( $this->instance['primary_term']->term_taxonomy_id ) )
 		{
-			$search_ttids[] = (int) $this->instance['primary_term']->term_taxonomy_id;		
+			$search_ttids[] = (int) $this->instance['primary_term']->term_taxonomy_id;
 		}
 
 		if( isset( $this->instance['alias_terms'] ) )
@@ -693,7 +693,7 @@ class Authority_Posttype {
 			}
 		}
 
-		
+
 		echo '<ul>';
 		foreach( (array) $wpdb->get_results('
 			SELECT t.term_taxonomy_id , COUNT(*) AS hits
@@ -747,14 +747,14 @@ class Authority_Posttype {
 		foreach( (array) $this->parse_terms_from_string( $source[ $which ] ) as $term )
 		{
 			// don't insert the primary term as a child, that's just silly
-			if( 
-				( $which != 'primary_term' ) && 
+			if(
+				( $which != 'primary_term' ) &&
 				( $term->term_taxonomy_id == $target['primary_term']->term_taxonomy_id )
 			)
 			{
 				continue;
 			}//end if
-			
+
 			$target[ $which ][] = $term;
 			if ( $delete_chache )
 			{
