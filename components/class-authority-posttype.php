@@ -19,18 +19,18 @@ class Authority_Posttype {
 		add_filter( 'post_link', array( $this, 'post_link' ), 11, 2 );
 		add_filter( 'post_type_link', array( $this, 'post_link' ), 11, 2 );
 
-		add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
-		add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
-		add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );
-		add_filter( 'wp_ajax_scrib_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
-
-		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );
-
-		add_action( 'save_post', array( $this , 'save_post' ));
-		add_action( 'save_post', array( $this , 'enforce_authority_on_object' ) , 9 );
-
 		if ( is_admin() )
 		{
+			add_action( 'wp_ajax_scrib_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
+			add_action( 'wp_ajax_scrib_create_authority_records', array( $this, 'create_authority_records_ajax' ));
+			add_filter( 'wp_ajax_scrib_term_report', array( $this, 'term_report_ajax' ) );
+			add_filter( 'wp_ajax_scrib_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
+
+			add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );
+
+			add_action( 'save_post', array( $this , 'save_post' ));
+			add_action( 'save_post', array( $this , 'enforce_authority_on_object' ) , 9 );
+
 			add_action( 'admin_enqueue_scripts', array( $this , 'enqueue_scripts' ) );
 
 			add_action( 'manage_{$this->post_type_name}_posts_custom_column', array( $this, 'column' ), 10 , 2 );
