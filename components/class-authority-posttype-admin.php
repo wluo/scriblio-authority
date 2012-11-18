@@ -23,9 +23,9 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	public function enqueue_scripts()
 	{
-		wp_register_style( 'scrib-authority' , $this->plugin_url . '/css/scrib-authority.structure.css' , array() , '3' );
-		wp_register_script( 'scrib-authority' , $this->plugin_url . '/js/jquery.scrib-authority.js' , array('jquery') , '3' , TRUE );
-		wp_register_script( 'scrib-authority-behavior' , $this->plugin_url . '/js/scrib-authority-behavior.js' , array( 'jquery' , 'scrib-authority' ) , '1' , TRUE );
+		wp_register_style( 'scrib-authority' , $this->plugin_url . '/css/scrib-authority.structure.css' , array() , $this->version );
+		wp_register_script( 'scrib-authority' , $this->plugin_url . '/js/jquery.scrib-authority.js' , array('jquery') , $this->version , TRUE );
+		wp_register_script( 'scrib-authority-behavior' , $this->plugin_url . '/js/scrib-authority-behavior.js' , array( 'jquery' , 'scrib-authority' ) , $this->version , TRUE );
 
 		wp_enqueue_style( 'scrib-authority' );
 		wp_enqueue_script( 'scrib-authority' );
@@ -312,6 +312,12 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	public function metab_coincidences( $post )
 	{
+		// sanity check
+		if( ! isset( $this->instance['primary_term']->name ))
+		{
+			return FALSE;
+		}
+
 		$coincidences = array_slice( (array) $this->get_related_terms_for_authority( $post->ID ) , 0 , 37 );
 ?>
 		<p>In addition to the terms entered above, <?php echo '<a href="'. get_term_link( $this->instance['primary_term'] ) .'" target="_blank">'. $this->instance['primary_term']->name .'</a>'; ?> is frequently used with the following terms:</p>
