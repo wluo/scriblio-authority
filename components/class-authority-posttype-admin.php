@@ -310,59 +310,35 @@ class Authority_Posttype_Admin extends Authority_Posttype
 <?php
 	}
 
-	public function metab_coincidence( $post )
+	public function metab_coincidences( $post )
 	{
-		global $wpdb;
+		$coincidences = array_slice( (array) $this->get_related_terms_for_authority( $post->ID ) , 0 , 23 );
+?>
+		<p>In addition to the terms entered above, <?php echo '<a href="'. get_term_link( $this->instance['primary_term'] ) .'" target="_blank">'. $this->instance['primary_term']->taxonomy .':'. $this->instance['primary_term']->slug .'</a>'; ?> is frequently used with the following terms:</p>
+<?php
 
-		$search_ttids = array();
-		if( isset( $this->instance['primary_term']->term_taxonomy_id ) )
+		echo '<ol>';
+		foreach( $coincidences as $coincidence )
 		{
-			$search_ttids[] = (int) $this->instance['primary_term']->term_taxonomy_id;
-		}
-
-		if( isset( $this->instance['alias_terms'] ) )
-		{
-			foreach( (array) $this->instance['alias_terms'] as $term )
-			{
-				$search_ttids[] = (int) $term->term_taxonomy_id;
+			$other_terms_string = '';
+			if( isset( $coincidence->authority_synonyms ))
+			{				
+				$other_terms = array();
+				foreach( $coincidence->authority_synonyms as $k => $v )
+				{
+					$other_terms[] = '<a href="'. get_term_link( $v ) .'" target="_blank">'. $v->taxonomy .':'. $v->slug .'</a>';
+				}
+	
+				if( count( $other_terms ))
+				{
+					$other_terms_string = ' (including '. implode( ', ' , $other_terms ) .')';
+				}
 			}
-		}
 
-		$exclude_ttids = $search_ttids;
-		if( isset( $this->instance['parent_terms'] ) )
-		{
-			foreach( (array) $this->instance['parent_terms'] as $term )
-			{
-				$exclude_ttids[] = (int) $term->term_taxonomy_id;
-			}
+			echo '<li><a href="'. get_term_link( $coincidence ) .'" target="_blank">'. $coincidence->taxonomy .':'. $coincidence->slug .'</a>'. $other_terms_string .'</li>';
 		}
-
-		if( isset( $this->instance['child_terms'] ) )
-		{
-			foreach( (array) $this->instance['child_terms'] as $term )
-			{
-				$exclude_ttids[] = (int) $term->term_taxonomy_id;
-			}
-		}
-
-
-		echo '<ul>';
-		foreach( (array) $wpdb->get_results('
-			SELECT t.term_taxonomy_id , COUNT(*) AS hits
-			FROM '. $wpdb->term_relationships .' t
-			JOIN '. $wpdb->term_relationships .' p ON p.object_id = t.object_id
-			WHERE p.term_taxonomy_id IN( '. implode( ',' , $search_ttids ) .' )
-			AND t.term_taxonomy_id NOT IN( '. implode( ',' , $exclude_ttids ) .' )
-			GROUP BY t.term_taxonomy_id
-			ORDER BY hits DESC
-			LIMIT 11
-		') as $ttid )
-		{
-			$term = $this->get_term_by_ttid( $ttid->term_taxonomy_id );
-			echo '<li>'. $term->taxonomy .':'. $term->name .' ('. (int) $ttid->hits .' hits)</li>';
-		}
-		echo '</ul>';
-	}//end metab_enforce
+		echo '</ol>';
+	}//end metab_coincidences
 
 	public function metab_enforce( $post )
 	{
@@ -375,7 +351,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		add_meta_box( 'scrib-authority-primary' , 'Primary Term' , array( $this , 'metab_primary_term' ) , $this->post_type_name , 'normal', 'high' );
 		add_meta_box( 'scrib-authority-alias' , 'Alias Terms' , array( $this , 'metab_alias_terms' ) , $this->post_type_name , 'normal', 'high' );
 		add_meta_box( 'scrib-authority-family' , 'Family Terms' , array( $this , 'metab_family_terms' ) , $this->post_type_name , 'normal', 'high' );
-		add_meta_box( 'scrib-authority-coincidence' , 'Related Term Clusters' , array( $this , 'metab_coincidence' ) , $this->post_type_name , 'normal', 'low' );
+		add_meta_box( 'scrib-authority-coincidences' , 'Related Term Clusters' , array( $this , 'metab_coincidences' ) , $this->post_type_name , 'normal', 'low' );
 		add_meta_box( 'scrib-authority-enforce' , 'Enforce' , array( $this , 'metab_enforce' ) , $this->post_type_name , 'normal', 'low' );
 
 		// @TODO: need metaboxes for links and arbitrary values (ticker symbol, etc)

@@ -268,7 +268,7 @@ class Authority_Posttype {
 				{
 					remove_action( 'save_post', array( $this->admin_obj , 'save_post' ));
 					wp_insert_post( $post );
-					add_action( 'save_post', array( $this->admin_obj , 'save_post' ));				
+					add_action( 'save_post', array( $this->admin_obj , 'save_post' ));
 				}
 				else
 				{
@@ -439,4 +439,149 @@ class Authority_Posttype {
 
 		}
 	}
+
+	public function get_ttids_in_authority( $post_id )
+	{
+		// get the terms for the requested post
+		$this->instance = $this->get_post_meta( $post_id );
+
+		// sanity check ourselves
+		if( ! isset( $this->instance['primary_term'] ))
+		{
+			return FALSE;
+		}
+
+		// build an array of the primary and alias TT IDs
+		$search_ttids = array();
+		if( isset( $this->instance['primary_term']->term_taxonomy_id ) )
+		{
+			$search_ttids[ (int) $this->instance['primary_term']->term_taxonomy_id ] = (int) $this->instance['primary_term']->term_taxonomy_id;
+		}
+
+		if( isset( $this->instance['alias_terms'] ) )
+		{
+			foreach( (array) $this->instance['alias_terms'] as $term )
+			{
+				$search_ttids[ (int) $term->term_taxonomy_id ] = (int) $term->term_taxonomy_id;
+			}
+		}
+
+		// add an array of all TT IDs, including parent and child terms
+		$exclude_ttids = $search_ttids;
+		if( isset( $this->instance['parent_terms'] ) )
+		{
+			foreach( (array) $this->instance['parent_terms'] as $term )
+			{
+				$exclude_ttids[ (int) $term->term_taxonomy_id ] = (int) $term->term_taxonomy_id;
+			}
+		}
+
+		if( isset( $this->instance['child_terms'] ) )
+		{
+			foreach( (array) $this->instance['child_terms'] as $term )
+			{
+				$exclude_ttids[ (int) $term->term_taxonomy_id ] = (int) $term->term_taxonomy_id;
+			}
+		}
+
+		return (object) array( 'synonym_ttids' => $search_ttids , 'all_ttids' => $exclude_ttids );
+	}
+
+	public function get_related_terms_for_authority( $post_id )
+	{
+
+		// get TT IDs
+		$ttids = $this->get_ttids_in_authority( $post_id );
+		$search_ttids = $ttids->synonym_ttids;
+		$exclude_ttids = $ttids->all_ttids;
+
+		// sanity check ourselves
+		if( empty( $search_ttids ))
+		{
+			return FALSE;
+		}
+
+		// find those term taxonomy IDs in the DB, turn them into an array of real term objects
+		global $wpdb;
+		$coincidences = array();
+		foreach( (array) $wpdb->get_results('
+			SELECT t.term_taxonomy_id , COUNT(*) AS hits
+			FROM '. $wpdb->term_relationships .' t
+			JOIN '. $wpdb->term_relationships .' p ON p.object_id = t.object_id
+			WHERE p.term_taxonomy_id IN( '. implode( ',' , $search_ttids ) .' )
+			AND t.term_taxonomy_id NOT IN( '. implode( ',' , $exclude_ttids ) .' )
+			GROUP BY t.term_taxonomy_id
+			ORDER BY hits DESC
+			LIMIT 200
+		') as $ttid )
+		{
+			$coincidences[ $ttid->term_taxonomy_id ] = $this->get_term_by_ttid( $ttid->term_taxonomy_id );
+			$coincidences[ $ttid->term_taxonomy_id ]->count = $ttid->hits;
+		}
+
+		return $this->filter_terms_by_authority( $coincidences , $exclude_ttids );
+
+	}//end get_related_terms_for_authority
+
+	public function filter_terms_by_authority( $input_terms , $exclude_ttids = array() )
+	{
+
+		// sanity check
+		if( ! is_array( $input_terms ) )
+		{
+			return FALSE;
+		}
+
+		// iterate through the array, lookup the authority
+		$output_terms = array();
+		foreach( $input_terms as $input_term )
+		{
+			// is there an authority record for this term?
+			if( $authority = $this->get_term_authority( $input_term ) )
+			{
+				// have we already created an output term with this authority?
+				if( ! isset( $output_terms[ $authority->primary_term->term_taxonomy_id ] ) )
+				{
+					$output_terms[ $authority->primary_term->term_taxonomy_id ] = $authority->primary_term;
+
+					// override the count with that from the input terms for more accurate sorting
+					$output_terms[ $authority->primary_term->term_taxonomy_id ]->count = $input_term->count;				
+				}
+				else
+				{
+					// take the highest count value
+					// note: summing the counts leads to lies, results in double-counts and worse
+					$output_terms[ $authority->primary_term->term_taxonomy_id ]->count = max( $input_term->count , $output_terms[ $authority->primary_term->term_taxonomy_id ]->count );				
+				}
+
+				// save the non-authoritative input term as an element inside this term
+				if( $input_term->term_taxonomy_id != $authority->primary_term->term_taxonomy_id )
+				{
+					$output_terms[ $authority->primary_term->term_taxonomy_id ]->authority_synonyms[ $input_term->term_taxonomy_id ] = $input_term;
+				}
+			}
+			// okay, does the input term at least smell like a real term?
+			elseif( isset( $input_term->term_id , $input_term->taxonomy , $input_term->term_taxonomy_id , $input_term->count ))
+			{
+				$output_terms[ $input_term->term_taxonomy_id ] = get_term( $input_term->term_id , $input_term->taxonomy );
+			}
+		}
+
+		if( isset( $exclude_ttids ))
+		{
+			$output_terms = array_diff_key( $output_terms , $exclude_ttids ); 
+		}
+
+		// sort the new term array
+		usort( $output_terms, array( $this , '_sort_filtered_terms' ));
+
+		return $output_terms;
+	}
+
+	public function _sort_filtered_terms( $a , $b )
+	{
+		// reverse compare so items with higher counts are at the top of the array
+		return $a->count > $b->count ? -1 : 1;
+	}
+
 }//end Authority_Posttype class
