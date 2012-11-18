@@ -516,7 +516,7 @@ class Authority_Posttype {
 			scrib_authority_data['primary'] = <?php echo json_encode( $json ); ?>;
 		</script>
 		<label class="" for="<?php echo $this->get_field_id( 'primary_term' ); ?>">The primary term is the authoritative way to reference this thing or concept</label><textarea rows="3" cols="50" name="<?php echo $this->get_field_name( 'primary_term' ); ?>" id="<?php echo $this->get_field_id( 'primary_term' ); ?>"><?php echo implode( ', ' , (array) $primary_term ); ?></textarea>
-		(<a href="<?php echo $tpl->edit_term_link; ?>">edit term</a>)
+		(<a href="<?php echo get_edit_term_link( $this->instance['primary_term']->term_id , $this->instance['primary_term']->taxonomy );; ?>">edit term</a>)
 
 <?php
 	}
