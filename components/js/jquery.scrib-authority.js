@@ -8,7 +8,7 @@
  *
  * Adding default items:
  * $('#element').ScribAuthority( 'items', [
- *   { 
+ *   {
  *     taxonomy: 'something',
  *     term: 'some-term',
  *     data: {
@@ -20,7 +20,7 @@
  *
  * Adding results:
  * $('#element').ScribAuthority( 'results', [
- *   { 
+ *   {
  *     taxonomy: 'something',
  *     term: 'some-term',
  *     data: {
@@ -359,7 +359,7 @@
 				var $el = $(this);
 				var $root = methods.root( $el );
 				var items = $el.data('items');
-				
+
 				if ( ! items ) {
 					items = [];
 				}//end if
@@ -499,7 +499,7 @@
 		 */
 		update_target: function( $root ) {
 			var $target = $root.find( '#' + $root.data('target') );
-			$target.val( $target.ScribAuthority('data_string', 'term') );	
+			$target.val( $target.ScribAuthority('data_string', 'term') );
 		}
 	};
 

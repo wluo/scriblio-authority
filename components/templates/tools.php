@@ -15,8 +15,8 @@
 			?>
 		</ul>
 	</div>
-	
-	<?php 
+
+	<?php
 	if( current_user_can( 'manage_options' ))
 	{
 	?>
@@ -34,7 +34,7 @@
 			<ul>
 				<?php
 				$taxs = authority_record()->supported_taxonomies();
-				
+
 				foreach( $taxs as $tax_obj_a )
 				{
 					foreach( $taxs as $tax_obj_b )
