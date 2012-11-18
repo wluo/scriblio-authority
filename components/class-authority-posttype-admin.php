@@ -18,19 +18,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ) , 11 );
 		add_filter( 'manage_posts_columns' , array( $this, 'columns' ) , 11 );
 
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-
 		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );
-	}
-
-	public function admin_menu()
-	{
-		add_submenu_page( 'edit.php?post_type=' . $this->post_type_name , 'Authority Record Tools' , 'Tools' , 'edit_posts' , $this->tools_page_id, array( $this , 'tools_page' ) );
-	}
-
-	public function tools_page()
-	{
-		include_once __DIR__ . '/templates/tools.php';
 	}
 
 	public function enqueue_scripts()
@@ -128,7 +116,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		$this->instance = $this->get_post_meta( $post->ID );
 
 		$taxonomies = array();
-		$taxonomy_objects = parent::supported_taxonomies();
+		$taxonomy_objects = authority_record()->supported_taxonomies();
 		foreach( $taxonomy_objects as $key => $taxonomy ) {
 			if(
 				'category' == $key ||
@@ -188,7 +176,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 	public function metab_alias_terms( $post )
 	{
 		$taxonomies = array();
-		$taxonomy_objects = parent::supported_taxonomies();
+		$taxonomy_objects = authority_record()->supported_taxonomies();
 		foreach( $taxonomy_objects as $key => $taxonomy ) {
 			if(
 				'category' == $key ||
@@ -393,7 +381,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		// @TODO: need metaboxes for links and arbitrary values (ticker symbol, etc)
 
 		// remove the taxonomy metaboxes so we don't get confused
-		$taxonomies = parent::supported_taxonomies();
+		$taxonomies = authority_record()->supported_taxonomies();
 		foreach( $taxonomies as $taxomoy )
 		{
 			if( $taxomoy->hierarchical )
@@ -608,7 +596,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		else
 		{
 			// @TODO: this used to be configurable in the dashboard.
-			$taxonomy = array_keys( parent::supported_taxonomies() );
+			$taxonomy = array_keys( authority_record()->supported_taxonomies() );
 		}//end else
 
 		// generate a key we can use to cache these results
