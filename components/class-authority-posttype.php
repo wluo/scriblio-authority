@@ -691,27 +691,6 @@ class Authority_Posttype {
 		}
 	}
 
-	public function control_taxonomies( $field_name )
-	{
-		$taxonomies = $this->supported_taxonomies();
-		ksort( $taxonomies );
-
-		$tpl = new StdClass;
-		$tpl->field_id = $this->get_field_id( $field_name );
-		$tpl->field_name = $this->get_field_name( $field_name );
-		$tpl->field = $this->instance[ $field_name ];
-		$tpl->taxonomies = $taxonomies;
-
-		?>
-			<label class="screen-reader-text" for="<?php echo $tpl->field_id; ?>">Select taxonomy</label>
-			<select name="<?php echo $tpl->field_name; ?>" id="<?php echo $tpl->field_id; ?>" class="widefat">
-			<?php foreach ( $tpl->taxonomies as $taxonomy ) : ?>
-				<option value="<?php echo $taxonomy->name; ?>" <?php echo selected( $tpl->field , $taxonomy->name , FALSE ); ?>><?php echo $taxonomy->labels->singular_name; ?></option>
-			<?php endforeach; ?>
-			</select>
-		<?php
-	}
-
 	public function _parse_terms( $which , $source , $target , $delete_cache = FALSE , $limit = 0 )
 	{
 		$target[ $which ] = array();
