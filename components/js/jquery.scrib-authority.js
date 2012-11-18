@@ -391,7 +391,7 @@
 		},
 		search: function( $root, $entry ) {
 			var params = {
-				action: 'scrib_authority_results',
+				action: 'authority_admin_suggest',
 				s: $entry.val()
 			};
 

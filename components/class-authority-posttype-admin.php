@@ -18,7 +18,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ) , 11 );
 		add_filter( 'manage_posts_columns' , array( $this, 'columns' ) , 11 );
 
-		add_filter( 'wp_ajax_scrib_authority_results', array( $this, 'authority_results' ) );
+		add_filter( 'wp_ajax_authority_admin_suggest', array( $this, 'admin_suggest_ajax' ) );
 	}
 
 	public function enqueue_scripts()
@@ -366,7 +366,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	public function metab_enforce( $post )
 	{
-		echo '<a href="'. $this->enforce_authority_on_corpus_url( $post->ID ) .'" target="_blank">Enforce this authority on all posts</a>';
+		echo '<a href="'. authority_record()->tools_obj->enforce_authority_on_corpus_url( $post->ID ) .'" target="_blank">Enforce this authority on all posts</a>';
 	}//end metab_enforce
 
 	public function metaboxes()
@@ -557,7 +557,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		return $columns;
   	}
 
-	public function authority_results()
+	public function admin_suggest_ajax()
 	{
 		$s = trim( $_GET['s'] );
 		$suggestions = $this->suggestions( $s );
@@ -565,7 +565,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 		header('Content-Type: application/json');
 		echo json_encode( $suggestions );
 		die;
-	}//end authority_results
+	}//end admin_suggest_ajax
 
 	public function suggestions( $s = '' , $_taxonomy = array() )
 	{
