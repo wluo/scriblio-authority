@@ -543,7 +543,7 @@ class Authority_Posttype {
 			}
 		}
 
-		if( isset( $exclude_ttids ))
+		if( ! empty( $exclude_ttids ))
 		{
 			$output_terms = array_diff_key( $output_terms , $exclude_ttids ); 
 		}
