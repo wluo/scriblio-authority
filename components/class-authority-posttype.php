@@ -236,6 +236,9 @@ class Authority_Posttype {
 		// primary (authoritative) taxonomy term
 		if( isset( $meta['primary_term']->term_id ))
 		{
+			// synchronize primary term
+			$meta['primary_term'] = $this->sync_term( $meta['primary_term'] );
+
 			$object_terms[ $meta['primary_term']->taxonomy ][] = (int) $meta['primary_term']->term_id;
 
 			// clear the authority cache for this term
@@ -275,6 +278,9 @@ class Authority_Posttype {
 		$alias_dedupe = array();
 		foreach( (array) $meta['alias_terms'] as $term )
 		{
+			// synchronize alias term
+			$term = $this->sync_term( $term );
+
 			$alias_dedupe[ (int) $term->term_taxonomy_id ] = $term;
 		}
 		$meta['alias_terms'] = $alias_dedupe;
@@ -297,6 +303,46 @@ class Authority_Posttype {
 		foreach( (array) $object_terms as $k => $v )
 			wp_set_object_terms( $post_id , $v , $k , FALSE );
 	}
+
+	/**
+	 * ensures that authority posts have accurate term/taxonomy ids in the scrib-authority
+	 * meta.  If a term doesn't exist, it is created.
+	 *
+	 * @param $sync Object Term object
+	 */
+	public function sync_term( $sync )
+	{
+		$term_args = array(
+			'slug' => $sync->slug,
+			'description' => $sync->description,
+		);
+
+		$override = FALSE;
+
+		if ( ! ( $term = get_term_by( 'slug', $sync->slug, $sync->taxonomy ) ) )
+		{
+			$term     = wp_insert_term( $sync->name, $sync->taxonomy, $term_args );
+			$override = TRUE;
+		}//end if
+		elseif ( $term->name != $sync->name || $term->description != $sync->description )
+		{
+			$term     = wp_update_term( $term->term_id, $term->taxonomy, $term_args );
+			$override = TRUE;
+		}//end elseif
+
+		if ( $override && ! is_wp_error( $term ) )
+		{
+			// if we get in here, the term was either created or updated and we need
+			// to pull a new object
+			$sync = get_term_by( 'id', $term->term_id, $sync->taxonomy );
+		}//end if
+		else
+		{
+			$sync = $term;
+		}//end else
+
+		return $sync;
+	}//end sync_term
 
 	public function register_post_type()
 	{
