@@ -31,6 +31,8 @@ class Authority_Posttype {
 
 			require_once dirname( __FILE__ ) . '/class-authority-posttype-tools.php';
 			$this->tools_obj = new Authority_Posttype_Tools;
+
+			add_filter( 'wp_import_post_meta', array( $this, 'wp_import_post_meta' ), 10, 3 );
 		}
 	}
 
@@ -212,6 +214,12 @@ class Authority_Posttype {
 	public function get_post_meta( $post_id )
 	{
 		$this->instance = get_post_meta( $post_id , $this->post_meta_key , TRUE );
+
+		if ( ! is_wp_error( $this->instance ) && isset( $this->instance->primary_term ) )
+		{
+			$this->instance->primary_term = $this->sanitize_term( $this->instance->primary_term );
+		}//end if
+
 		return $this->instance;
 	}
 
@@ -237,7 +245,7 @@ class Authority_Posttype {
 		if( isset( $meta['primary_term']->term_id ))
 		{
 			// synchronize primary term
-			$meta['primary_term'] = $this->sync_term( $meta['primary_term'] );
+			$meta['primary_term'] = $this->sanitize_term( $meta['primary_term'] );
 
 			$object_terms[ $meta['primary_term']->taxonomy ][] = (int) $meta['primary_term']->term_id;
 
@@ -279,7 +287,7 @@ class Authority_Posttype {
 		foreach( (array) $meta['alias_terms'] as $term )
 		{
 			// synchronize alias term
-			$term = $this->sync_term( $term );
+			$term = $this->sanitize_term( $term );
 
 			$alias_dedupe[ (int) $term->term_taxonomy_id ] = $term;
 		}
@@ -305,13 +313,83 @@ class Authority_Posttype {
 	}
 
 	/**
+	 * Hook into the WordPress importer to hijack and sanitize scrib-authority term/taxonomy IDs
+	 *
+	 * @param $meta array Post meta
+	 * @param $post_id int Post ID
+	 * @param $post WP_Post Post object
+	 */
+	public function wp_import_post_meta( $meta, $post_id, $post )
+	{
+		$authority_key = null;
+
+		// find the scrib-authority meta data and meta index ($authority_key)
+		foreach ( $meta as $key => $data )
+		{
+			if ( 'scrib-authority' == $data['key'] )
+			{
+				$authority     = maybe_unserialize( $data['value'] );
+				$authority_key = $key;
+			}//end if
+		}//end foreach
+
+		if ( $authority_key === null )
+		{
+			// no scrib-authority data was found. Return the meta data as is
+			return $meta;
+		}//end if
+
+		if ( ! isset( $authority['primary_term'] ) && ! isset( $authority['alias_terms'] ) )
+		{
+			// if there aren't any primary terms or alias terms, just return the post meta
+			return $meta;
+		}//end if
+
+		if ( isset( $authority['primary_term'] ) )
+		{
+			// if we have a primary term, sanitize it (this creates the term if needed)
+			$authority['primary_term'] = $this->sanitize_term( $authority['primary_term'] );
+		}//end if
+
+		if ( isset( $authority['alias_terms'] ) )
+		{
+			// if we have any alias terms, sanitize/create those
+			foreach ( $authority['alias_terms'] as $key => $term )
+			{
+				$authority['alias_terms'][ $key ] = $this->sanitize_term( $term );
+			}//end foreach
+		}//end if
+
+		// re-serialize the fresh authority data
+		$meta[ $authority_key ]['value'] = serialize( $authority );
+
+		// return the rest of the meta data
+		return $meta;
+	}//end wp_import_post_meta
+
+	/**
 	 * ensures that authority posts have accurate term/taxonomy ids in the scrib-authority
 	 * meta.  If a term doesn't exist, it is created.
 	 *
 	 * @param $sync Object Term object
 	 */
-	public function sync_term( $sync )
+	public function sanitize_term( $sync )
 	{
+		// let's try and get a term with the same ID
+		$term = get_term_by( 'id', $sync->term_id, $sync->taxonomy );
+
+		// if the term can be found with an ID and the name/description/slug match, we've found a
+		// match.  Return it.
+		if (
+			   ! is_wp_error( $term )
+			&& $term->slug == $sync->slug
+			&& $term->name == $sync->name
+			&& $term->description == $sync->description
+		)
+		{
+			return $term;
+		}//end if
+
 		$term_args = array(
 			'slug' => $sync->slug,
 			'description' => $sync->description,
@@ -319,13 +397,16 @@ class Authority_Posttype {
 
 		$override = FALSE;
 
+		// since we couldn't find the term by ID, let's look for it by slug
 		if ( ! ( $term = get_term_by( 'slug', $sync->slug, $sync->taxonomy ) ) )
 		{
+			// the slug wasn't found.  Insert the term.
 			$term     = wp_insert_term( $sync->name, $sync->taxonomy, $term_args );
 			$override = TRUE;
 		}//end if
 		elseif ( $term->name != $sync->name || $term->description != $sync->description )
 		{
+			// the slug was found, but some of the details are different.  Synchronize them
 			$term     = wp_update_term( $term->term_id, $term->taxonomy, $term_args );
 			$override = TRUE;
 		}//end elseif
@@ -341,8 +422,10 @@ class Authority_Posttype {
 			$sync = $term;
 		}//end else
 
+		// we return $sync rather than term in the event that we get all the way down here with dirty
+		// data.  We'll keep it dirty (and present) until it can be fixed.
 		return $sync;
-	}//end sync_term
+	}//end sanitize_term
 
 	public function register_post_type()
 	{
