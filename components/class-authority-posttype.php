@@ -223,11 +223,13 @@ class Authority_Posttype {
 		return $this->instance;
 	}
 
-	public function update_post_meta( $post_id , $meta_array )
+	public function update_post_meta( $post_id, $meta_array )
 	{
 		// make sure meta is added to the post, not a revision
-		if ( $_post_id = wp_is_post_revision( $post_id ))
+		if ( $_post_id = wp_is_post_revision( $post_id ) )
+		{
 			$post_id = $_post_id;
+		}//end if
 
 		// the terms we'll set on this object
 		$object_terms = array();
@@ -235,14 +237,14 @@ class Authority_Posttype {
 		if( is_object( $meta_array ) )
 		{
 			$meta = (array) $meta_array;
-		}
+		}//end if
 		else
 		{
 			$meta = $meta_array;
-		}
+		}//end else
 
 		// primary (authoritative) taxonomy term
-		if( isset( $meta['primary_term']->term_id ))
+		if( isset( $meta['primary_term']->term_id ) )
 		{
 			// synchronize primary term
 			$meta['primary_term'] = $this->sanitize_term( $meta['primary_term'] );
@@ -255,7 +257,7 @@ class Authority_Posttype {
 			// updating the post title is a pain in the ass, just look at what happens when we try to save it
 			$post = get_post( $post_id );
 			$post->post_title = $meta['primary_term']->name;
-			if( ! preg_match( '/^'. $meta['primary_term']->slug .'/', $post->post_name ))
+			if( ! preg_match( '/^'. $meta['primary_term']->slug .'/', $post->post_name ) )
 			{
 				// update the title
 				$post->post_name = $meta['primary_term']->slug;
@@ -267,50 +269,68 @@ class Authority_Posttype {
 				// remove the action before attempting to save the post, then reinstate it
 				if( isset( $this->admin_obj ))
 				{
-					remove_action( 'save_post', array( $this->admin_obj , 'save_post' ));
+					remove_action( 'save_post', array( $this->admin_obj, 'save_post' ));
 					wp_insert_post( $post );
-					add_action( 'save_post', array( $this->admin_obj , 'save_post' ));
-				}
+					add_action( 'save_post', array( $this->admin_obj, 'save_post' ));
+				}//end if
 				else
 				{
 					wp_insert_post( $post );
-				}
+				}//end else
 
 				// add back the revision support
 				// but this post type doesn't support revisions
 				// add_post_type_support( $this->post_type_name , 'revisions' );
-			}
-		}
+			}//end if
+		}//end if
 
-		// alias terms
-		$alias_dedupe = array();
-		foreach( (array) $meta['alias_terms'] as $term )
+		$term_groups = array(
+			'alias_terms',
+			'parent_terms',
+			'child_terms',
+		);
+
+		foreach ( $term_groups as $group )
 		{
-			// synchronize alias term
-			$term = $this->sanitize_term( $term );
+			if ( ! isset( $meta[ $group ] ) )
+			{
+				continue;
+			}//end if
 
-			$alias_dedupe[ (int) $term->term_taxonomy_id ] = $term;
-		}
-		$meta['alias_terms'] = $alias_dedupe;
-		unset( $alias_dedupe );
+			$dedupe = array();
+			foreach( (array) $meta[ $group ] as $term )
+			{
+				// synchronize term
+				$term = $this->sanitize_term( $term );
 
-		foreach( (array) $meta['alias_terms'] as $term )
-		{
-				// don't insert the primary term as an alias, that's just silly
+				$dedupe[ (int) $term->term_taxonomy_id ] = $term;
+			}//end foreach
+
+			$meta[ $group ] = $dedupe;
+			unset( $dedupe );
+
+			foreach( (array) $meta[ $group ] as $term )
+			{
+				// don't insert the primary term as an alias/child/parent, that's just silly
 				if( $term->term_taxonomy_id == $meta['primary_term']->term_taxonomy_id )
+				{
 					continue;
+				}//end if
 
 				$object_terms[ $term->taxonomy ][] = (int) $term->term_id;
 				$this->delete_term_authority_cache( $term );
-		}
+			}//end foreach
+		}//end foreach
 
 		// save it
-		update_post_meta( $post_id , $this->post_meta_key , $meta );
+		update_post_meta( $post_id, $this->post_meta_key, $meta );
 
 		// update the term relationships for this post (add the primary and alias terms)
-		foreach( (array) $object_terms as $k => $v )
-			wp_set_object_terms( $post_id , $v , $k , FALSE );
-	}
+		foreach( $object_terms as $k => $v )
+		{
+			wp_set_object_terms( $post_id, $v, $k, FALSE );
+		}//end foreach
+	}//end update_post_meta
 
 	/**
 	 * Hook into the WordPress importer to hijack and sanitize scrib-authority term/taxonomy IDs
@@ -333,35 +353,30 @@ class Authority_Posttype {
 			}//end if
 		}//end foreach
 
-		if ( $authority_key === null )
+		if ( null === $authority_key )
 		{
 			// no scrib-authority data was found. Return the meta data as is
 			return $meta;
 		}//end if
 
-		if ( ! isset( $authority['primary_term'] ) && ! isset( $authority['alias_terms'] ) )
+		if (
+			   ! isset( $authority['primary_term'] )
+			&& ! isset( $authority['alias_terms'] )
+			&& ! isset( $authority['child_terms'] )
+			&& ! isset( $authority['parent_terms'] )
+		)
 		{
-			// if there aren't any primary terms or alias terms, just return the post meta
+			// if there aren't any primary, alias, parent, or child terms, just return the post meta
 			return $meta;
 		}//end if
 
-		if ( isset( $authority['primary_term'] ) )
-		{
-			// if we have a primary term, sanitize it (this creates the term if needed)
-			$authority['primary_term'] = $this->sanitize_term( $authority['primary_term'] );
-		}//end if
+		// let's insert the authority data on the post.  We're using update_post_meta
+		// because it sanitizes the scrib-authority terms
+		$this->update_post_meta( $post_id, $authority );
 
-		if ( isset( $authority['alias_terms'] ) )
-		{
-			// if we have any alias terms, sanitize/create those
-			foreach ( $authority['alias_terms'] as $key => $term )
-			{
-				$authority['alias_terms'][ $key ] = $this->sanitize_term( $term );
-			}//end foreach
-		}//end if
-
-		// re-serialize the fresh authority data
-		$meta[ $authority_key ]['value'] = serialize( $authority );
+		// since the meta has been assigned to the post a la update_post_meta, we can unset
+		// it from the meta array handled by the wordpress importer
+		unset( $meta[ $authority_key ] );
 
 		// return the rest of the meta data
 		return $meta;
@@ -415,7 +430,7 @@ class Authority_Posttype {
 		{
 			// if we get in here, the term was either created or updated and we need
 			// to pull a new object
-			$sync = get_term_by( 'id', $term->term_id, $sync->taxonomy );
+			$sync = get_term_by( 'id', $term['term_id'], $sync->taxonomy );
 		}//end if
 		else
 		{
