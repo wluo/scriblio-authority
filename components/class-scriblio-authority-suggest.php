@@ -1,6 +1,6 @@
 <?php
 
-class Scriblio_Authority
+class Scriblio_Authority_Suggest
 {
 	public $ep_name_suggest = 'scriblio-authority-suggest';
 
@@ -165,14 +165,14 @@ class Scriblio_Authority
 	}//end suggestions
 }//end class
 
-function scriblio_authority()
+function scriblio_authority_suggest()
 {
-	global $scriblio_authority;
+	global $scriblio_authority_suggest;
 
-	if ( ! $scriblio_authority )
+	if ( ! $scriblio_authority_suggest )
 	{
-		$scriblio_authority = new Scriblio_Authority;
+		$scriblio_authority_suggest = new Scriblio_Authority_Suggest;
 	}//end if
 
-	return $scriblio_authority;
-}//end scriblio_authority
+	return $scriblio_authority_suggest;
+}//end scriblio_authority_suggest
