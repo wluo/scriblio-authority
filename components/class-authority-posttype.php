@@ -47,7 +47,7 @@ class Authority_Posttype {
 		if( ! isset( $term->term_taxonomy_id ))
 			return FALSE;
 
-		wp_cache_delete( $term->term_taxonomy_id , 'scrib_authority_ttid' );
+		wp_cache_delete( $term->term_taxonomy_id , 'scrib_authority_ttid_'. $this->version );
 	}
 
 	public function get_term_authority( $term )
@@ -57,7 +57,7 @@ class Authority_Posttype {
 		if( ! isset( $term->term_id , $term->taxonomy , $term->term_taxonomy_id ))
 			return FALSE;
 
-		if( $return = wp_cache_get( $term->term_taxonomy_id , 'scrib_authority_ttid' ))
+		if( $return = wp_cache_get( $term->term_taxonomy_id , 'scrib_authority_ttid_'. $this->version ))
 			return $return;
 
 		// query to find a matching authority record
@@ -99,7 +99,7 @@ class Authority_Posttype {
 				}
 			}
 
-			wp_cache_set( $term->term_taxonomy_id , (object) $return , 'scrib_authority_ttid' , $this->cache_ttl );
+			wp_cache_set( $term->term_taxonomy_id , (object) $return , 'scrib_authority_ttid_'. $this->version , $this->cache_ttl );
 			return (object) $return;
 		}
 
@@ -366,8 +366,16 @@ class Authority_Posttype {
 					continue;
 				}//end if
 
-				$object_terms[ $term->taxonomy ][] = (int) $term->term_id;
+				// Add alias terms to the taxonomy system
+				// IMPORTANT: don't add parent or child terms, that causes undesirable behavior
+				if( 'alias_terms' == $group )
+				{
+					$object_terms[ $term->taxonomy ][] = (int) $term->term_id;
+				}
+
+				// delete the authority cache for these terms
 				$this->delete_term_authority_cache( $term );
+
 			}//end foreach
 		}//end foreach
 
