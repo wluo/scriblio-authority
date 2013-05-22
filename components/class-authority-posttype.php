@@ -138,11 +138,19 @@ class Authority_Posttype {
 		// we have an authority record, but
 		// don't attempt to redirect requests for the authoritative term
 		if( $queried_object->term_taxonomy_id == $authority->primary_term->term_taxonomy_id )
+		{
 			return;
+		}
 
 		// we have an authority record, and
 		// we're on an alias term, redirect
-		wp_redirect( get_term_link( (int) $authority->primary_term->term_id , $authority->primary_term->taxonomy ));
+		$term_link = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
+		// check to make sure the term_link isn't an error
+		if( is_wp_error( $term_link ) )
+		{
+			return;
+		}
+		wp_redirect( $term_link );
 		die;
 
 	}
@@ -171,7 +179,13 @@ class Authority_Posttype {
 		}
 
 		// return the permalink for the primary term
-		return get_term_link( (int) $authority->primary_term->term_id , $authority->primary_term->taxonomy );
+		$term_link = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
+		// check to make sure the term_link isn't an error
+		if( is_wp_error( $term_link ) )
+		{
+			return home_url();
+		}
+		return get_term_link( $term_link );
 
 	}//end post_link
 
