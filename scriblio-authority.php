@@ -5,8 +5,6 @@ Plugin URI: http://about.scriblio.net/
 Version: a1
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
-Author: Matthew Batchelder
-Author URI: http://borkweb.com
 Contributors: borkweb, abackstrom
 License: GPL2
 */
