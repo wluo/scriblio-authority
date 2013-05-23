@@ -13,10 +13,8 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 		add_action( 'admin_enqueue_scripts', array( $this , 'enqueue_scripts' ) );
 
-		add_action( 'manage_{$this->post_type_name}_posts_custom_column', array( $this, 'column' ), 10 , 2 );
-		add_action( 'manage_posts_custom_column', array( $this, 'column' ), 10 , 2 );
-		add_filter( 'manage_{$this->post_type_name}_posts_columns' , array( $this, 'columns' ) , 11 );
-		add_filter( 'manage_posts_columns' , array( $this, 'columns' ) , 11 );
+		add_action( "manage_{$this->post_type_name}_posts_custom_column", array( $this, 'column' ), 10 , 2 );
+		add_filter( "manage_{$this->post_type_name}_posts_columns" , array( $this, 'columns' ) , 11 );
 	}
 
 	public function enqueue_scripts()
@@ -461,12 +459,6 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	function column( $column , $post_id )
 	{
-		// only operate on our posts
-		// strangely, this filter doesn't appear to be working
-		// http://codex.wordpress.org/Plugin_API/Action_Reference/manage_$post_type_posts_custom_column
-		if( ! isset( $_GET['post_type'] ) || $this->post_type_name != $_GET['post_type'] )
-			return;
-
 		switch( $column )
 		{
 			case $this->id_base .'_primary_term':
@@ -482,19 +474,10 @@ class Authority_Posttype_Admin extends Authority_Posttype
 				echo $this->column_child_terms( $post_id );
 				break;
 		}
-
-		return $content;
 	}
 
 	function columns( $columns )
 	{
-
-		// only operate on our posts
-		// strangely, this filter doesn't appear to be working
-		// http://codex.wordpress.org/Plugin_API/Filter_Reference/manage_$post_type_posts_columns
-		if( ! isset( $_GET['post_type'] ) || $this->post_type_name != $_GET['post_type'] )
-			return $columns;
-
 		// preserve a couple columns
 		// this is especially aggressive in removing columns added indiscriminately in other plugins
 		// that's also why the filter priority is 11, so we can remove other plugins' cruft (i'm looking at you co-authors-plus)

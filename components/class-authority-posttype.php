@@ -185,7 +185,7 @@ class Authority_Posttype {
 		{
 			return home_url();
 		}
-		return get_term_link( $term_link );
+		return $term_link;
 
 	}//end post_link
 
