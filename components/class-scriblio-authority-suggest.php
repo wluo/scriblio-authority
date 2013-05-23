@@ -143,7 +143,8 @@ class Scriblio_Authority_Suggest
 			// filter the terms through the authorities
 			$terms = authority_record()->filter_terms_by_authority( $terms );
 
-			if ( $terms ) {
+			if ( $terms )
+			{
 				// create suggestions for the matched terms
 				foreach( (array) $terms as $term )
 				{
