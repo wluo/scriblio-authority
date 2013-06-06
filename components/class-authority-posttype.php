@@ -51,7 +51,7 @@ class Authority_Posttype {
 	{
 		$authority = $this->queried_authority_data();
 
-		if ( $authority && ! is_wp_error( $authority->post ) && $authority->post->post_excerpt )
+		if ( $authority && ! is_wp_error( $authority->post ) && ! empty( $authority->post->post_excerpt ) )
 		{
 			echo '<meta name="description" content="' . esc_attr( $authority->post->post_excerpt ) . '">';
 		}//end if
