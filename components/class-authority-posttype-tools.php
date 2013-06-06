@@ -44,7 +44,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 				'post_type'      => $this->post_type_name,
 				'post_status'    => 'publish',
 				'order'          => 'DESC',
-				'orderby'        => 'ID',
+				'orderby'        => 'post_modified_gmt',
 			);
 
 			$query = new WP_Query( $args );
