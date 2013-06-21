@@ -2,6 +2,8 @@
 
 class Authority_Posttype_Tools extends Authority_Posttype
 {
+	public $stemmer_loaded = FALSE;
+
 	public function __construct()
 	{
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -364,6 +366,18 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
 
+	public function stem( $word )
+	{
+		if ( ! $this->stemmer_loaded )
+		{
+			require_once __DIR__ . '/externals/class-porterstemmer.php';
+			$this->stemmer_loaded = TRUE;
+		}
+
+		return PorterStemmer::Stem( $word );
+	}
+
+
 	public function term_report_ajax()
 	{
 		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_term_report&taxonomy=post_tag
@@ -384,6 +398,8 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		$columns = array(
 			'term',
 			'slug',
+			'stema',
+			'stemz',
 			'count',
 			'status',
 			'authoritative_term',
@@ -447,6 +463,8 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			$csv->add( array(
 				'term' => html_entity_decode( $term->name ),
 				'slug' => $term->slug,
+				'stema' => $this->stem( reset( str_word_count( strtolower( trim( $term->name ) ), 1 ) ) ),
+				'stemz' => $this->stem( end( str_word_count( strtolower( trim( $term->name ) ), 1 ) ) ),
 				'count' => $term->count,
 				'status' => $status,
 				'authoritative_term' => $primary,
