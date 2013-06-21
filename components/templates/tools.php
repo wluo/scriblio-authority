@@ -35,6 +35,13 @@
 		</div>
 
 		<div class="tool-box">
+			<h3 class="title">Advanced: Update term counts</h3>
+			<p>Warning: don't attempt this unless you've read the code and know exactly what it does.</p>
+
+			<p><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_update_term_counts' ); ?>" target="_blank">Update term counts</a></p>
+		</div>
+
+		<div class="tool-box">
 			<h3 class="title">Advanced: Create authority records</h3>
 			<p>Warning: don't attempt this unless you've read the code and know exactly what it does.</p>
 			<p>Create authority records for terms shared in multiple taxonomies</p>
