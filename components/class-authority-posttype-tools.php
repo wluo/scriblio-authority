@@ -11,6 +11,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		add_action( 'wp_ajax_authority_create_authority_records', array( $this, 'create_authority_records_ajax' ));
 		add_filter( 'wp_ajax_authority_term_report', array( $this, 'term_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
+		add_filter( 'wp_ajax_authority_update_term_counts', array( $this, 'update_term_counts_ajax' ) );
 	}
 
 	public function admin_menu()
@@ -139,7 +140,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		if ( isset( $authority['parent_terms'] ) )
 		{
 			foreach( (array) $authority['parent_terms'] as $term )
+			{
 				$add_terms[ $term->taxonomy ][] = (int) $term->term_id;
+			}
 		}//end if
 
 		// section of terms to delete from each post
@@ -170,7 +173,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		if ( isset( $authority['alias_terms'] ) )
 		{
 			foreach( $authority['alias_terms'] as $term )
+			{
 				$search_terms[ $term->taxonomy ][] = (int) $term->term_id;
+			}
 		}//end if
 
 		// get post types, exclude this post type
@@ -203,7 +208,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		}
 
 		if( ! count( $post_ids ))
+		{
 			return FALSE;
+		}
 
 		$post_ids = array_unique( $post_ids );
 
@@ -224,8 +231,6 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 			if( $delete_object_tt_ids = array_intersect( (array) $new_object_tt_ids , (array) $delete_tt_ids ))
 				$this->delete_terms_from_object_id( $post_id , $delete_object_tt_ids );
 		}
-
-		$this->_update_term_counts();
 
 		return( (object) array( 'post_ids' => $post_ids , 'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) >= $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
@@ -356,8 +361,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 		}
 
-		$this->_update_term_counts();
-
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
 
@@ -366,7 +369,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_term_report&taxonomy=post_tag
 
 		if( ! current_user_can( 'edit_posts' ))
+		{
 			return;
+		}
 
 		// this can use a lot of memory and time
 		ini_set( 'memory_limit', '1024M' );
@@ -459,7 +464,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 	public function term_suffix_cleaner_ajax()
 	{
 		if( ! current_user_can( 'manage_options' ))
+		{
 			return;
+		}
 
 		// don't bother updating term counts yet, it'll just slow us down and we have so much to do
 		wp_defer_term_counting( TRUE );
@@ -543,11 +550,18 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			}
 		}
 
-		// be courteous
-		$this->_update_term_counts();
-
 		// know when to stop
 		die;
 	}
 
+	public function update_term_counts_ajax()
+	{
+		if ( ! current_user_can( 'manage_options' ) )
+		{
+			return FALSE;
+		}
+
+		$this->_update_term_counts();
+		die;
+	}
 }//end Authority_Posttype_Tools class
