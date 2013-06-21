@@ -16,7 +16,6 @@
 		</ul>
 	</div>
 
-<h3 class="title">STEM</h3>
 	<?php
 
 	if( current_user_can( 'manage_options' ))
