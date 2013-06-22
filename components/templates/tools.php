@@ -16,34 +16,41 @@
 		</ul>
 	</div>
 
+	<div class="tool-box">
+		<h3 class="title">Term analysis</h3>
+		<ul>
+			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_stem_report' ); ?>">Download term stem report CSV</a></li>
+		</ul>
+	</div>
+
 	<?php
 
 	if( current_user_can( 'manage_options' ))
 	{
 	?>
 		<div class="tool-box">
-			<h3 class="title">Enforce Term Authority</h3>
+			<h3 class="title">Enforce term authority</h3>
 			<p>This takes a while, but it loops over all authority records and enforces term authority on all posts.</p>
 
 			<p><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_enforce_all_authority' ); ?>" target="_blank">Enforce authority on all authority records</a>
 		</div>
 
 		<div class="tool-box">
-			<h3 class="title">Advanced: Clean numeric term slug suffixes</h3>
+			<h3 class="title">Advanced: clean numeric term slug suffixes</h3>
 			<p>Warning: don't attempt this unless you've read the code and know exactly what it does.</p>
 
 			<p><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_term_suffix_cleaner' ); ?>" target="_blank">Clean numeric term slug suffixes</a>, use same term_id for same term_name in different taxonomies</p>
 		</div>
 
 		<div class="tool-box">
-			<h3 class="title">Advanced: Update term counts</h3>
+			<h3 class="title">Advanced: update term counts</h3>
 			<p>Warning: don't attempt this unless you've read the code and know exactly what it does.</p>
 
 			<p><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_update_term_counts' ); ?>" target="_blank">Update term counts</a></p>
 		</div>
 
 		<div class="tool-box">
-			<h3 class="title">Advanced: Create authority records</h3>
+			<h3 class="title">Advanced: create authority records</h3>
 			<p>Warning: don't attempt this unless you've read the code and know exactly what it does.</p>
 			<p>Create authority records for terms shared in multiple taxonomies</p>
 			<ul>

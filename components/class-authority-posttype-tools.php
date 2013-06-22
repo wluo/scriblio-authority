@@ -11,6 +11,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		add_action( 'wp_ajax_authority_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_authority_enforce_all_authority', array( $this, 'wp_ajax_authority_enforce_all_authority' ));
 		add_action( 'wp_ajax_authority_create_authority_records', array( $this, 'create_authority_records_ajax' ));
+		add_filter( 'wp_ajax_authority_stem_report', array( $this, 'stem_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_report', array( $this, 'term_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
 		add_filter( 'wp_ajax_authority_update_term_counts', array( $this, 'update_term_counts_ajax' ) );
@@ -377,6 +378,66 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		return PorterStemmer::Stem( $word );
 	}
 
+	public function stem_report_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_stem_report
+
+		if( ! current_user_can( 'edit_posts' ))
+		{
+			return;
+		}
+
+		// this can use a lot of memory and time
+		ini_set( 'memory_limit', '1024M' );
+		set_time_limit( 900 );
+
+		// set the columns for the report
+		$columns = array(
+			'stem',
+			'rstem',
+			'term',
+			'slug',
+			'count',
+			'taxonomies',
+			'term_id',
+		);
+
+		// get the CSV class
+		$csv = new_authority_csv( 'stems-'. date( 'r' ) , $columns );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT t.name , t.term_id, t.slug, GROUP_CONCAT( tt.taxonomy ) AS taxonomies, SUM( tt.count ) AS hits
+			FROM $wpdb->terms t
+			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
+			GROUP BY t.term_id
+			/* generated in Authority_Posttype_Tools::stem_report_ajax() */
+		" );
+		$terms = $wpdb->get_results( $query );
+
+		// iterate through the results and output each row as CSV
+		foreach( $terms as $term )
+		{
+			// each iteration increments the time limit just a bit (until we run out of memory)
+			set_time_limit( 15 );
+
+			foreach( str_word_count( strtolower( trim( $term->name ) ), 1 ) as $word )
+			{
+				$csv->add( array(
+					'stem' => $this->stem( $word ),
+					'rstem' => strrev( $this->stem( $word ) ),
+					'term' => html_entity_decode( $term->name ),
+					'slug' => $term->slug,
+					'count' => $term->hits,
+					'taxonomies' => $term->taxonomies,
+					'term_id' => $term->term_id
+				));
+			}
+		}
+
+		die;
+	}
 
 	public function term_report_ajax()
 	{
@@ -398,8 +459,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		$columns = array(
 			'term',
 			'slug',
-			'stema',
-			'stemz',
 			'count',
 			'status',
 			'authoritative_term',
@@ -423,6 +482,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			AND tt.count > 0
 			ORDER BY tt.count DESC
 			LIMIT 3000
+			/* generated in Authority_Posttype_Tools::term_report_ajax() */
 		" , $taxonomy );
 		$terms = $wpdb->get_results( $query );
 
@@ -463,8 +523,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			$csv->add( array(
 				'term' => html_entity_decode( $term->name ),
 				'slug' => $term->slug,
-				'stema' => $this->stem( reset( str_word_count( strtolower( trim( $term->name ) ), 1 ) ) ),
-				'stemz' => $this->stem( end( str_word_count( strtolower( trim( $term->name ) ), 1 ) ) ),
 				'count' => $term->count,
 				'status' => $status,
 				'authoritative_term' => $primary,
