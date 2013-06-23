@@ -20,6 +20,7 @@
 		<h3 class="title">Term analysis</h3>
 		<ul>
 			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_stem_report' ); ?>">Download term stem report CSV</a></li>
+			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_spell_report&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE' ); ?>">Download term spell check report CSV</a></li>
 		</ul>
 	</div>
 
