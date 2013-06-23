@@ -473,7 +473,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			FROM $wpdb->terms t
 			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
 			GROUP BY t.term_id
-			LIMIT 1000
 			/* generated in Authority_Posttype_Tools::spell_report_ajax() */
 		" );
 		$terms = $wpdb->get_results( $query );
