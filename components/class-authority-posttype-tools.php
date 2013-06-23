@@ -378,12 +378,15 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			// initialize the result object
 			$suggestion = (object) array( 'text' => NULL, 'status' => FALSE );
 
-			$suggestions_json = wp_remote_get( sprintf(
-				'https://ignored:%1$s@api.datamarket.azure.com/Bing/Search/v1/SpellingSuggestions?$format=json%2$s&Query=%3$s',
-				$azure_datamarket_key,
-				'&Options=%27EnableHighlighting%27&Adult=%27Off%27',
-				urlencode( '\'' . $word . '\'' )
-			));
+			$suggestions_json = wp_remote_get( 
+				sprintf(
+					'https://ignored:%1$s@api.datamarket.azure.com/Bing/Search/v1/SpellingSuggestions?$format=json%2$s&Query=%3$s',
+					$azure_datamarket_key,
+					'&Options=%27EnableHighlighting%27&Adult=%27Off%27',
+					urlencode( '\'' . $word . '\'' )
+				),
+				array( 'timeout' => 2 )
+			);
 			$suggestions_json = wp_remote_retrieve_body( $suggestions_json );
 
 			// detect some API failures and JSON decode errors
@@ -494,7 +497,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 			foreach( explode( ',', $term->taxonomies ) as $taxonomy )
 			{
-
 				// get a proper term object
 				$term_object = get_term( $term->term_id, $taxonomy );
 
@@ -561,9 +563,10 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			'stem',
 			'rstem',
 			'term',
+			'authority_status',
 			'slug',
 			'count',
-			'taxonomies',
+			'taxonomy',
 			'term_id',
 		);
 
@@ -589,15 +592,38 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 			foreach( str_word_count( strtolower( trim( $term->name ) ), 1 ) as $word )
 			{
-				$csv->add( array(
-					'stem' => $this->stem( $word ),
-					'rstem' => strrev( $this->stem( $word ) ),
-					'term' => html_entity_decode( $term->name ),
-					'slug' => $term->slug,
-					'count' => $term->hits,
-					'taxonomies' => $term->taxonomies,
-					'term_id' => $term->term_id
-				));
+				foreach( explode( ',', $term->taxonomies ) as $taxonomy )
+				{
+					// get a proper term object
+					$term_object = get_term( $term->term_id, $taxonomy );
+
+					// check if there's an authority record
+					$authority = $this->get_term_authority( $term_object );
+
+					if ( isset( $authority->primary_term ) && ( sanitize_title_with_dashes( $term_object->slug ) == $authority->primary_term->slug ) )
+					{
+						$status = 'prime';
+					}
+					elseif ( isset( $authority->primary_term ) )
+					{
+						$status = 'alias';
+					}
+					else
+					{
+						$status = '';
+					}
+
+					$csv->add( array(
+						'stem' => $this->stem( $word ),
+						'rstem' => strrev( $this->stem( $word ) ),
+						'term' => html_entity_decode( $term->name ),
+						'authority_status' => $status,
+						'slug' => $term->slug,
+						'count' => $term->hits,
+						'taxonomy' => $taxonomy,
+						'term_id' => $term->term_id
+					));
+				}
 			}
 		}
 
