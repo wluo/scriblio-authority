@@ -378,12 +378,13 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			// initialize the result object
 			$suggestion = (object) array( 'text' => NULL, 'status' => FALSE );
 
-			$suggestions_json = wp_remote_retrieve_body( wp_remote_get( sprintf(
+			$suggestions_json = wp_remote_get( sprintf(
 				'https://ignored:%1$s@api.datamarket.azure.com/Bing/Search/v1/SpellingSuggestions?$format=json%2$s&Query=%3$s',
 				$azure_datamarket_key,
 				'&Options=%27EnableHighlighting%27&Adult=%27Off%27',
 				urlencode( '\'' . $word . '\'' )
-			)));
+			));
+			$suggestions_json = wp_remote_retrieve_body( $suggestions_json );
 
 			// detect some API failures and JSON decode errors
 			if ( ! ( $suggestions_from_api = json_decode( $suggestions_json ) ) || ! is_object( $suggestions_from_api ) )
@@ -434,7 +435,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 	public function spell_report_ajax()
 	{
-
 		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_spell_report&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE
 
 		if ( ! current_user_can( 'edit_posts' ))
@@ -524,6 +524,8 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 					'count' => $term->hits,
 					'taxonomy' => $taxonomy
 				) );
+
+				sleep( 1 );
 			}
 		}
 
@@ -543,7 +545,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 	public function stem_report_ajax()
 	{
-
 		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_stem_report
 
 		if( ! current_user_can( 'edit_posts' ))
