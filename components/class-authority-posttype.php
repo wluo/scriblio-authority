@@ -548,6 +548,8 @@ class Authority_Posttype {
 				),
 				'register_meta_box_cb' => is_admin() ? array( $this->admin(), 'metaboxes' ) : FALSE,
 				'public' => TRUE,
+				'publicly_queryable' => FALSE,
+				'exclude_from_search' => TRUE,
 				'taxonomies' => array_keys( $taxonomies ),
 			)
 		);
