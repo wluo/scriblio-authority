@@ -12,6 +12,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		add_action( 'wp_ajax_authority_enforce_all_authority', array( $this, 'wp_ajax_authority_enforce_all_authority' ));
 		add_action( 'wp_ajax_authority_create_authority_records', array( $this, 'create_authority_records_ajax' ));
 		add_filter( 'wp_ajax_authority_spell_report', array( $this, 'spell_report_ajax' ) );
+		add_filter( 'wp_ajax_authority_spell_test', array( $this, 'spell_test_ajax' ) );
 		add_filter( 'wp_ajax_authority_stem_report', array( $this, 'stem_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_report', array( $this, 'term_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
@@ -39,7 +40,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		{
 			return FALSE;
 		}
-		
+
 		$post_id        = (int) $_REQUEST['authority_post_id'];
 		$posts_per_page = is_numeric( $_REQUEST['posts_per_page'] ) ? (int) $_REQUEST['posts_per_page'] : 50;
 		$page_num       = is_numeric( $_REQUEST['page_num'] ) ? (int) $_REQUEST['page_num'] : 0;
@@ -377,13 +378,19 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 	{
 		$word = trim( $word );
 
-		$cachekey = md5( $word );
+		// include the version with the cachekey for easier upgrades
+		$cachekey = md5( $word ) . $this->version;
+
+		// try fetching from cache first, continue through to do the query if cache is dry
 		if ( ! $suggestion = wp_cache_get( $cachekey, 'scriblio_authority_spell' ) )
 		{
 			// initialize the result object
 			$suggestion = (object) array( 'text' => NULL, 'status' => FALSE );
+			// default cache ttl for errors
+			// ttl is changed below for successful queries
+			$ttl = 337; // a prime number slightly more than 5 minutes
 
-			$suggestions_json = wp_remote_get( 
+			$suggestions_json = wp_remote_get(
 				sprintf(
 					'https://ignored:%1$s@api.datamarket.azure.com/Bing/Search/v1/SpellingSuggestions?$format=json%2$s&Query=%3$s',
 					$azure_datamarket_key,
@@ -392,18 +399,31 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 				),
 				array( 'timeout' => 2 )
 			);
-			$suggestions_json = wp_remote_retrieve_body( $suggestions_json );
 
-			// detect some API failures and JSON decode errors
-			if ( ! ( $suggestions_from_api = json_decode( $suggestions_json ) ) || ! is_object( $suggestions_from_api ) )
+			// detect some API failures, connection errors, and bad authentication
+			if (
+				! is_array( $suggestions_json ) ||
+				! isset( $suggestions_json['response']['code'] ) ||
+				200 != (int) $suggestions_json['response']['code']
+			)
 			{
 				$suggestion->status = 'failed_connection_error';
 			}
+			else
+			{
+				$suggestions_json = wp_remote_retrieve_body( $suggestions_json );
+			}
 
-			// check for the response array we expect
+			// detect missing data and JSON decode errors
 			if (
-				! isset( $suggestions_from_api->d->results ) ||
-				! is_array( $suggestions_from_api->d->results )
+				// false status is no status, and that means we haven't detected a failure yet
+				! $suggestion->status &&
+				(
+					! ( $suggestions_from_api = json_decode( $suggestions_json ) ) ||
+					! is_object( $suggestions_from_api ) ||
+					! isset( $suggestions_from_api->d->results ) ||
+					! is_array( $suggestions_from_api->d->results )
+				)
 			)
 			{
 				$suggestion->status = 'failed_data_unreadable';
@@ -417,17 +437,28 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 			// check to see if the suggested text is the same as the provided text
 			if (
-				empty( $suggestion->text ) ||
-				strtolower( $suggestion->text ) == strtolower( $word ) )
+				// false status is no status, and that means we haven't detected a failure yet
+				! $suggestion->status
+			)
 			{
-				$suggestion->status = 'no_suggestion';
-			}
-			else
-			{
-				$suggestion->status = 'suggestion';
+				if (
+					empty( $suggestion->text ) ||
+					strtolower( $suggestion->text ) == strtolower( $word )
+				)
+				{
+					$suggestion->status = 'no_suggestion';
+				}
+				else
+				{
+					$suggestion->status = 'suggestion';
+				}
+
+				// whatever we have here, it's a successful query
+				// reset the cache ttl to be indefinite
+				$ttl = 0;
 			}
 
-			wp_cache_set( $cachekey, $suggestion, 'scriblio_authority_spell', 0 );
+			wp_cache_set( $cachekey, $suggestion, 'scriblio_authority_spell', $ttl );
 		}
 
 		// return the object if verbose is desired, or the string if not
@@ -532,9 +563,32 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 					'taxonomy' => $taxonomy
 				) );
 
-				sleep( 1 );
+				usleep( 250 );
 			}
 		}
+
+		die;
+	}
+
+	public function spell_test_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_spell_test&word=PAST_YOUR_TEST_WORD_OR_PHRASE_HERE&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE
+
+		if ( ! current_user_can( 'edit_posts' ))
+		{
+			wp_die( 'Whoa, not cool', 'Not authorized' );
+		}
+
+		if ( ! isset( $_GET['key'] ) || 'PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE' == $_GET['key'] )
+		{
+			wp_die( 'Please set your <a href="http://datamarket.azure.com/dataset/bing/search">Bing Search</a> <a href="http://datamarket.azure.com">Windows Azure Marketplace</a> <a href="https://datamarket.azure.com/account/keys">account key</a> in the URL. You might also want to <a href="https://datamarket.azure.com/dataset/explore/bing/search">check your available transactions</a> before continuing.', 'Azure account key missing' );
+		}
+
+		// get the spelling suggestions
+		$spell =  $this->spell( $_GET['word'], $_GET['key'], TRUE );
+
+		echo '<pre>';
+		print_r( $spell );
 
 		die;
 	}
@@ -566,7 +620,6 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		// set the columns for the report
 		$columns = array(
 			'stem',
-			'rstem',
 			'term',
 			'authority_status',
 			'slug',
@@ -605,6 +658,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 					// check if there's an authority record
 					$authority = $this->get_term_authority( $term_object );
 
+					$status = '';
 					if ( isset( $authority->primary_term ) && ( sanitize_title_with_dashes( $term_object->slug ) == $authority->primary_term->slug ) )
 					{
 						$status = 'prime';
@@ -613,14 +667,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 					{
 						$status = 'alias';
 					}
-					else
-					{
-						$status = '';
-					}
 
 					$csv->add( array(
 						'stem' => $this->stem( $word ),
-						'rstem' => strrev( $this->stem( $word ) ),
 						'term' => html_entity_decode( $term->name ),
 						'authority_status' => $status,
 						'slug' => $term->slug,
