@@ -2,6 +2,8 @@
 
 class Authority_Posttype_Tools extends Authority_Posttype
 {
+	public $stemmer_loaded = FALSE;
+
 	public function __construct()
 	{
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -9,8 +11,12 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		add_action( 'wp_ajax_authority_enforce_authority', array( $this, 'enforce_authority_on_corpus_ajax' ));
 		add_action( 'wp_ajax_authority_enforce_all_authority', array( $this, 'wp_ajax_authority_enforce_all_authority' ));
 		add_action( 'wp_ajax_authority_create_authority_records', array( $this, 'create_authority_records_ajax' ));
+		add_filter( 'wp_ajax_authority_spell_report', array( $this, 'spell_report_ajax' ) );
+		add_filter( 'wp_ajax_authority_spell_test', array( $this, 'spell_test_ajax' ) );
+		add_filter( 'wp_ajax_authority_stem_report', array( $this, 'stem_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_report', array( $this, 'term_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
+		add_filter( 'wp_ajax_authority_update_term_counts', array( $this, 'update_term_counts_ajax' ) );
 	}
 
 	public function admin_menu()
@@ -30,6 +36,11 @@ class Authority_Posttype_Tools extends Authority_Posttype
 
 	public function wp_ajax_authority_enforce_all_authority()
 	{
+		if ( ! current_user_can( 'manage_options' ) )
+		{
+			return FALSE;
+		}
+
 		$post_id        = (int) $_REQUEST['authority_post_id'];
 		$posts_per_page = is_numeric( $_REQUEST['posts_per_page'] ) ? (int) $_REQUEST['posts_per_page'] : 50;
 		$page_num       = is_numeric( $_REQUEST['page_num'] ) ? (int) $_REQUEST['page_num'] : 0;
@@ -44,7 +55,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 				'post_type'      => $this->post_type_name,
 				'post_status'    => 'publish',
 				'order'          => 'DESC',
-				'orderby'        => 'ID',
+				'orderby'        => 'post_modified_gmt',
 			);
 
 			$query = new WP_Query( $args );
@@ -98,6 +109,11 @@ window.location = "<?php echo $this->enforce_all_authority_url( $post_id, $autho
 
 	public function enforce_authority_on_corpus_ajax()
 	{
+		if ( ! current_user_can( 'manage_options' ) )
+		{
+			return FALSE;
+		}
+
 		if( $_REQUEST['authority_post_id'] && $this->get_post_meta( (int) $_REQUEST['authority_post_id'] ))
 			$result = $this->enforce_authority_on_corpus(
 				(int) $_REQUEST['authority_post_id'] ,
@@ -134,7 +150,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		if ( isset( $authority['parent_terms'] ) )
 		{
 			foreach( (array) $authority['parent_terms'] as $term )
+			{
 				$add_terms[ $term->taxonomy ][] = (int) $term->term_id;
+			}
 		}//end if
 
 		// section of terms to delete from each post
@@ -165,7 +183,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		if ( isset( $authority['alias_terms'] ) )
 		{
 			foreach( $authority['alias_terms'] as $term )
+			{
 				$search_terms[ $term->taxonomy ][] = (int) $term->term_id;
+			}
 		}//end if
 
 		// get post types, exclude this post type
@@ -198,7 +218,9 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 		}
 
 		if( ! count( $post_ids ))
+		{
 			return FALSE;
+		}
 
 		$post_ids = array_unique( $post_ids );
 
@@ -219,8 +241,6 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 			if( $delete_object_tt_ids = array_intersect( (array) $new_object_tt_ids , (array) $delete_tt_ids ))
 				$this->delete_terms_from_object_id( $post_id , $delete_object_tt_ids );
 		}
-
-		$this->_update_term_counts();
 
 		return( (object) array( 'post_ids' => $post_ids , 'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) >= $posts_per_page ? 1 + $paged : FALSE ) ));
 	}
@@ -271,6 +291,11 @@ window.location = "<?php echo $this->enforce_authority_on_corpus_url( $_REQUEST[
 
 	public function create_authority_records_ajax()
 	{
+		if ( ! current_user_can( 'manage_options' ) )
+		{
+			return FALSE;
+		}
+
 		// validate the taxonomies
 		if( ! ( is_taxonomy( $_REQUEST['old_tax'] ) && is_taxonomy( $_REQUEST['new_tax'] )))
 			return FALSE;
@@ -346,9 +371,317 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 
 		}
 
-		$this->_update_term_counts();
-
 		return( (object) array( 'post_ids' => $post_ids , 'total_count' => $total_count ,'processed_count' => ( 1 + $paged ) * $posts_per_page , 'next_paged' => ( count( $post_ids ) == $posts_per_page ? 1 + $paged : FALSE ) ));
+	}
+
+	public function spell( $word, $azure_datamarket_key, $verbose = FALSE )
+	{
+		$word = trim( $word );
+
+		// include the version with the cachekey for easier upgrades
+		$cachekey = md5( $word ) . $this->version;
+
+		// try fetching from cache first, continue through to do the query if cache is dry
+		if ( ! $suggestion = wp_cache_get( $cachekey, 'scriblio_authority_spell' ) )
+		{
+			// initialize the result object
+			$suggestion = (object) array( 'text' => NULL, 'status' => FALSE );
+			// default cache ttl for errors
+			// ttl is changed below for successful queries
+			$ttl = 337; // a prime number slightly more than 5 minutes
+
+			$suggestions_json = wp_remote_get(
+				sprintf(
+					'https://ignored:%1$s@api.datamarket.azure.com/Bing/Search/v1/SpellingSuggestions?$format=json%2$s&Query=%3$s',
+					$azure_datamarket_key,
+					'&Options=%27EnableHighlighting%27&Adult=%27Off%27',
+					urlencode( '\'' . $word . '\'' )
+				),
+				array( 'timeout' => 2 )
+			);
+
+			// detect some API failures, connection errors, and bad authentication
+			if (
+				! is_array( $suggestions_json ) ||
+				! isset( $suggestions_json['response']['code'] ) ||
+				200 != (int) $suggestions_json['response']['code']
+			)
+			{
+				$suggestion->status = 'failed_connection_error';
+			}
+			else
+			{
+				$suggestions_json = wp_remote_retrieve_body( $suggestions_json );
+			}
+
+			// detect missing data and JSON decode errors
+			if (
+				// false status is no status, and that means we haven't detected a failure yet
+				! $suggestion->status &&
+				(
+					! ( $suggestions_from_api = json_decode( $suggestions_json ) ) ||
+					! is_object( $suggestions_from_api ) ||
+					! isset( $suggestions_from_api->d->results ) ||
+					! is_array( $suggestions_from_api->d->results )
+				)
+			)
+			{
+				$suggestion->status = 'failed_data_unreadable';
+			}
+
+			// not sure if the API supports multiple suggestions for a single query, but this code only supports one
+			if ( isset( $suggestions_from_api->d->results[0]->Value ) )
+			{
+				$suggestion->text = trim( $suggestions_from_api->d->results[0]->Value );
+			}
+
+			// check to see if the suggested text is the same as the provided text
+			if (
+				// false status is no status, and that means we haven't detected a failure yet
+				! $suggestion->status
+			)
+			{
+				if (
+					empty( $suggestion->text ) ||
+					strtolower( $suggestion->text ) == strtolower( $word )
+				)
+				{
+					$suggestion->status = 'no_suggestion';
+				}
+				else
+				{
+					$suggestion->status = 'suggestion';
+				}
+
+				// whatever we have here, it's a successful query
+				// reset the cache ttl to be indefinite
+				$ttl = 0;
+			}
+
+			wp_cache_set( $cachekey, $suggestion, 'scriblio_authority_spell', $ttl );
+		}
+
+		// return the object if verbose is desired, or the string if not
+		if ( $verbose )
+		{
+			return $suggestion;
+		}
+		else
+		{
+			return $suggestion->text;
+		}
+	}
+
+	public function spell_report_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_spell_report&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE
+
+		if ( ! current_user_can( 'edit_posts' ))
+		{
+			wp_die( 'Whoa, not cool', 'Not authorized' );
+		}
+
+		if ( ! isset( $_GET['key'] ) || 'PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE' == $_GET['key'] )
+		{
+			wp_die( 'Please set your <a href="http://datamarket.azure.com/dataset/bing/search">Bing Search</a> <a href="http://datamarket.azure.com">Windows Azure Marketplace</a> <a href="https://datamarket.azure.com/account/keys">account key</a> in the URL. You might also want to <a href="https://datamarket.azure.com/dataset/explore/bing/search">check your available transactions</a> before continuing.', 'Azure account key missing' );
+		}
+
+		// this can use a lot of memory and time
+		ini_set( 'memory_limit', '1024M' );
+		set_time_limit( 900 );
+
+		// set the columns for the report
+		$columns = array(
+			'term_id',
+			'term',
+			'suggestion',
+			'suggestion_exists',
+			'authority_status',
+			'slug',
+			'count',
+			'taxonomy',
+		);
+
+		// get the CSV class
+		$csv = new_authority_csv( 'spell-report-'. date( 'r' ) , $columns );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT t.name , t.term_id, t.slug, GROUP_CONCAT( tt.taxonomy ) AS taxonomies, SUM( tt.count ) AS hits
+			FROM $wpdb->terms t
+			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
+			GROUP BY t.term_id
+			/* generated in Authority_Posttype_Tools::spell_report_ajax() */
+		" );
+		$terms = $wpdb->get_results( $query );
+
+		// iterate through the results and output each row as CSV
+		foreach( $terms as $term )
+		{
+			// each iteration increments the time limit just a bit (until we run out of memory)
+			set_time_limit( 15 );
+
+			// get the spelling suggestions
+			$spell =  $this->spell( $term->name, $_GET['key'], TRUE );
+
+			// continue to the next term if there's no suggestion
+			if ( 'suggestion' != $spell->status )
+			{
+				continue;
+			}
+
+			foreach( explode( ',', $term->taxonomies ) as $taxonomy )
+			{
+				// get a proper term object
+				$term_object = get_term( $term->term_id, $taxonomy );
+
+				// check if there's an authority record
+				$authority = $this->get_term_authority( $term_object );
+
+				if ( isset( $authority->primary_term ) && ( sanitize_title_with_dashes( $term_object->slug ) == $authority->primary_term->slug ) )
+				{
+					$status = 'prime';
+				}
+				elseif ( isset( $authority->primary_term ) )
+				{
+					$status = 'alias';
+				}
+				else
+				{
+					$status = '';
+				}
+
+				$csv->add( array(
+					'term_id' => $term->term_id,
+					'term' => html_entity_decode( $term->name ),
+					'suggestion' => html_entity_decode( $spell->text ),
+					'suggestion_exists' => term_exists( $spell->text ),
+					'authority_status' => $status,
+					'slug' => $term->slug,
+					'count' => $term->hits,
+					'taxonomy' => $taxonomy
+				) );
+
+				usleep( 250 );
+			}
+		}
+
+		die;
+	}
+
+	public function spell_test_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_spell_test&word=PAST_YOUR_TEST_WORD_OR_PHRASE_HERE&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE
+
+		if ( ! current_user_can( 'edit_posts' ))
+		{
+			wp_die( 'Whoa, not cool', 'Not authorized' );
+		}
+
+		if ( ! isset( $_GET['key'] ) || 'PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE' == $_GET['key'] )
+		{
+			wp_die( 'Please set your <a href="http://datamarket.azure.com/dataset/bing/search">Bing Search</a> <a href="http://datamarket.azure.com">Windows Azure Marketplace</a> <a href="https://datamarket.azure.com/account/keys">account key</a> in the URL. You might also want to <a href="https://datamarket.azure.com/dataset/explore/bing/search">check your available transactions</a> before continuing.', 'Azure account key missing' );
+		}
+
+		// get the spelling suggestions
+		$spell =  $this->spell( $_GET['word'], $_GET['key'], TRUE );
+
+		echo '<pre>';
+		print_r( $spell );
+
+		die;
+	}
+
+	public function stem( $word )
+	{
+		if ( ! $this->stemmer_loaded )
+		{
+			require_once __DIR__ . '/externals/class-porterstemmer.php';
+			$this->stemmer_loaded = TRUE;
+		}
+
+		return PorterStemmer::Stem( $word );
+	}
+
+	public function stem_report_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_stem_report
+
+		if( ! current_user_can( 'edit_posts' ))
+		{
+			return;
+		}
+
+		// this can use a lot of memory and time
+		ini_set( 'memory_limit', '1024M' );
+		set_time_limit( 900 );
+
+		// set the columns for the report
+		$columns = array(
+			'stem',
+			'term',
+			'authority_status',
+			'slug',
+			'count',
+			'taxonomy',
+			'term_id',
+		);
+
+		// get the CSV class
+		$csv = new_authority_csv( 'stem-report-'. date( 'r' ) , $columns );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT t.name , t.term_id, t.slug, GROUP_CONCAT( tt.taxonomy ) AS taxonomies, SUM( tt.count ) AS hits
+			FROM $wpdb->terms t
+			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
+			GROUP BY t.term_id
+			/* generated in Authority_Posttype_Tools::stem_report_ajax() */
+		" );
+		$terms = $wpdb->get_results( $query );
+
+		// iterate through the results and output each row as CSV
+		foreach( $terms as $term )
+		{
+			// each iteration increments the time limit just a bit (until we run out of memory)
+			set_time_limit( 15 );
+
+			foreach( str_word_count( strtolower( trim( $term->name ) ), 1 ) as $word )
+			{
+				foreach( explode( ',', $term->taxonomies ) as $taxonomy )
+				{
+					// get a proper term object
+					$term_object = get_term( $term->term_id, $taxonomy );
+
+					// check if there's an authority record
+					$authority = $this->get_term_authority( $term_object );
+
+					$status = '';
+					if ( isset( $authority->primary_term ) && ( sanitize_title_with_dashes( $term_object->slug ) == $authority->primary_term->slug ) )
+					{
+						$status = 'prime';
+					}
+					elseif ( isset( $authority->primary_term ) )
+					{
+						$status = 'alias';
+					}
+
+					$csv->add( array(
+						'stem' => $this->stem( $word ),
+						'term' => html_entity_decode( $term->name ),
+						'authority_status' => $status,
+						'slug' => $term->slug,
+						'count' => $term->hits,
+						'taxonomy' => $taxonomy,
+						'term_id' => $term->term_id
+					));
+				}
+			}
+		}
+
+		die;
 	}
 
 	public function term_report_ajax()
@@ -356,7 +689,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_term_report&taxonomy=post_tag
 
 		if( ! current_user_can( 'edit_posts' ))
+		{
 			return;
+		}
 
 		// this can use a lot of memory and time
 		ini_set( 'memory_limit', '1024M' );
@@ -392,6 +727,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			AND tt.count > 0
 			ORDER BY tt.count DESC
 			LIMIT 3000
+			/* generated in Authority_Posttype_Tools::term_report_ajax() */
 		" , $taxonomy );
 		$terms = $wpdb->get_results( $query );
 
@@ -449,7 +785,9 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 	public function term_suffix_cleaner_ajax()
 	{
 		if( ! current_user_can( 'manage_options' ))
+		{
 			return;
+		}
 
 		// don't bother updating term counts yet, it'll just slow us down and we have so much to do
 		wp_defer_term_counting( TRUE );
@@ -533,11 +871,18 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			}
 		}
 
-		// be courteous
-		$this->_update_term_counts();
-
 		// know when to stop
 		die;
 	}
 
+	public function update_term_counts_ajax()
+	{
+		if ( ! current_user_can( 'manage_options' ) )
+		{
+			return FALSE;
+		}
+
+		$this->_update_term_counts();
+		die;
+	}
 }//end Authority_Posttype_Tools class
