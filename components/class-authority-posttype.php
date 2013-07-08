@@ -33,7 +33,7 @@ class Authority_Posttype {
 
 		// We use save_post instead of set_object_terms for a reason
 		// If we use set_object_terms taxonomies with no terms set will cause some taxonomy terms to be removed
-		add_action( 'save_post', array( $this , 'enforce_authority_on_object' ) );
+		add_action( 'save_post', array( $this , 'enforce_authority_on_object' ), 9 );
 
 		if ( is_admin() )
 		{
