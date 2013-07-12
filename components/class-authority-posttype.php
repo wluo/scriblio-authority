@@ -673,17 +673,23 @@ class Authority_Posttype {
 	{
 		// don't run on post revisions (almost always happens just before the real post is saved)
 		if ( wp_is_post_revision( $object_id ) )
+		{
 			return;
+		}
 
 		if ( ! $object_id )
+		{
 			return;
+		}
 
 		// get and check the post
 		$post = get_post( $object_id );
 
 		// don't mess with authority posts
 		if ( ! isset( $post->post_type ) || $this->post_type_name == $post->post_type )
+		{
 			return;
+		}
 
 		// get the terms to work with
 		$terms = wp_get_object_terms( $object_id , array_keys( $this->supported_taxonomies() ) );
@@ -698,26 +704,31 @@ class Authority_Posttype {
 				// add the preferred term to list of terms to add to the object
 				$new_object_terms[ $authority->primary_term->taxonomy ][] = (int) $authority->primary_term->term_id;
 
-				// if the current term is not in the same taxonomy as the preferred term, list it for removal from the object
+				// if the current term is not in the same taxonomy as the preferred term, 
+				// list it for removal from the object
 				if( $authority->primary_term->taxonomy != $term->taxonomy )
+				{
 					$delete_terms[] = $term->term_taxonomy_id;
+				}
 
 			}
 		}
 
 		// remove the alias terms that are not in primary taxonomy
-		if ( count( $delete_terms ))
-			$this->delete_terms_from_object_id( $object_id , $delete_terms );
+		if ( count( $delete_terms ) )
+		{
+			$this->delete_terms_from_object_id( $object_id, $delete_terms );
+		}
 
 		// add the alias and parent terms to the object
-		if ( count( $new_object_terms ))
+		if ( count( $new_object_terms ) )
 		{
 			foreach( (array) $new_object_terms as $k => $v )
 			{
-				wp_set_object_terms( $object_id , $v , $k , TRUE );
+				wp_set_object_terms( $object_id, $v, $k, TRUE );
 			}
 
-			update_post_cache( $post );
+			clean_post_cache( $post );
 		}
 	}
 
