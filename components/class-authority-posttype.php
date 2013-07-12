@@ -728,8 +728,12 @@ class Authority_Posttype {
 				wp_set_object_terms( $object_id, $v, $k, TRUE );
 			}
 
+			// @TODO: this may be wasted here, see the TODO below
 			clean_post_cache( $post );
 		}
+
+		// @TODO: maybe should do something like:
+		// clean_object_term_cache( $object_id, get_post( $object_id )->post_type )
 	}
 
 	// WP has no convenient method to delete a single term from an object, but this is what's used in wp-includes/taxonomy.php
@@ -742,7 +746,10 @@ class Authority_Posttype {
 		do_action( 'deleted_term_relationships', $object_id, $delete_terms );
 		wp_update_term_count( $delete_terms , $taxonomy_info->name );
 
-		clean_post_cache( get_post( $object_id ));
+		clean_post_cache( $object_id );
+
+		// @TODO: maybe should do something like:
+		// clean_object_term_cache( $object_id, get_post( $object_id )->post_type )
 
 		return;
 	}
