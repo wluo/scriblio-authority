@@ -742,7 +742,7 @@ class Authority_Posttype {
 		do_action( 'deleted_term_relationships', $object_id, $delete_terms );
 		wp_update_term_count( $delete_terms , $taxonomy_info->name );
 
-		update_post_cache( get_post( $object_id ));
+		clean_post_cache( get_post( $object_id ));
 
 		return;
 	}
