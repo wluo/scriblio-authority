@@ -704,7 +704,7 @@ class Authority_Posttype {
 				// add the preferred term to list of terms to add to the object
 				$new_object_terms[ $authority->primary_term->taxonomy ][] = (int) $authority->primary_term->term_id;
 
-				// if the current term is not in the same taxonomy as the preferred term, 
+				// if the current term is not in the same taxonomy as the preferred term,
 				// list it for removal from the object
 				if( $authority->primary_term->taxonomy != $term->taxonomy )
 				{
@@ -714,10 +714,14 @@ class Authority_Posttype {
 			}
 		}
 
+		// are the caches dirtied by changes below?
+		$dirty = FALSE;
+
 		// remove the alias terms that are not in primary taxonomy
 		if ( count( $delete_terms ) )
 		{
 			$this->delete_terms_from_object_id( $object_id, $delete_terms );
+			$dirty = TRUE;
 		}
 
 		// add the alias and parent terms to the object
@@ -729,11 +733,19 @@ class Authority_Posttype {
 			}
 
 			// @TODO: this may be wasted here, see the TODO below
-			clean_post_cache( $post );
+			$dirty = TRUE;
 		}
 
-		// @TODO: maybe should do something like:
-		// clean_object_term_cache( $object_id, get_post( $object_id )->post_type )
+		// clean the post cache and update the object term cache
+		if ( $dirty )
+		{
+			clean_post_cache( $object_id );
+			$post = get_post( $object_id );
+			if ( isset( $post->post_type ) )
+			{
+				update_object_term_cache( $object_id, $post->post_type );
+			}
+		}
 	}
 
 	// WP has no convenient method to delete a single term from an object, but this is what's used in wp-includes/taxonomy.php
@@ -746,10 +758,12 @@ class Authority_Posttype {
 		do_action( 'deleted_term_relationships', $object_id, $delete_terms );
 		wp_update_term_count( $delete_terms , $taxonomy_info->name );
 
-		clean_post_cache( $object_id );
-
-		// @TODO: maybe should do something like:
-		// clean_object_term_cache( $object_id, get_post( $object_id )->post_type )
+		// clean the object term cache
+		$post = get_post( $object_id );
+		if ( isset( $post->post_type ) )
+		{
+			clean_object_term_cache( $object_id, $post->post_type );
+		}
 
 		return;
 	}
