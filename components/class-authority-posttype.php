@@ -222,7 +222,7 @@ class Authority_Posttype {
 				{
 					return FALSE;
 				}
-				$term_candidate = get_term( $return['primary_term']->term_id, $return['primary_term']->taxononmy );
+				$term_candidate = get_term( $return['primary_term']->term_id, $return['primary_term']->taxonomy );
 				if ( ! $term_candidate || is_wp_error( $term_candidate ) )
 				{
 					return FALSE;
@@ -236,7 +236,7 @@ class Authority_Posttype {
 					{
 						return FALSE;
 					}
-					$term_candidate = get_term( $alias_term->term_id, $alias_term->taxononmy );
+					$term_candidate = get_term( $alias_term->term_id, $alias_term->taxonomy );
 					if ( ! $term_candidate || is_wp_error( $term_candidate ) )
 					{
 						return FALSE;
