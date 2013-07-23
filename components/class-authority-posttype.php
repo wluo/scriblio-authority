@@ -3,6 +3,7 @@ class Authority_Posttype {
 
 	public $admin_obj = FALSE;
 	public $tools_obj = FALSE;
+	public $go_opencalais = FALSE;
 	public $version = 7;
 	public $id_base = 'scrib-authority';
 	public $post_type_name = 'scrib-authority';
@@ -20,7 +21,7 @@ class Authority_Posttype {
 		wp_register_script( 'scrib-authority' , $this->plugin_url . '/js/jquery.scrib-authority.js' , array('jquery') , $this->version , TRUE );
 		wp_register_script( 'scrib-authority-behavior' , $this->plugin_url . '/js/scrib-authority-behavior.js' , array( 'jquery' , 'scrib-authority' ) , $this->version , TRUE );
 
-		add_action( 'init' , array( $this, 'register_post_type' ) , 11 );
+		add_action( 'init' , array( $this, 'init' ) , 11 );
 		add_action( 'wp_head', array( $this, 'wp_head' ) );
 		add_action( 'rss_head', array( $this, 'rss_head' ) );
 		add_action( 'rss2_head', array( $this, 'rss_head' ) );
@@ -42,6 +43,12 @@ class Authority_Posttype {
 
 			add_filter( 'wp_import_post_meta', array( $this, 'wp_import_post_meta' ), 10, 3 );
 		}
+	}
+
+	public function init()
+	{
+		$this->register_post_type();
+		$this->go_opencalais();
 	}
 
 	public function admin()
@@ -66,6 +73,25 @@ class Authority_Posttype {
 
 		return $this->tools_obj;
 	}
+
+	// a singleton for the go_opencalais integration object
+	public function go_opencalais()
+	{
+
+		// sanity check to make sure the go-opencalais plugin is loaded
+		if ( ! function_exists( 'go_opencalais' ) )
+		{
+			return FALSE;
+		}
+
+		if ( ! $this->go_opencalais )
+		{
+			require_once __DIR__ . '/class-authority-go-opencalais.php';
+			$this->yboss = new Authority_GO_OpenCalais();
+		}
+
+		return $this->go_opencalais;
+	} // END go_opencalais
 
 	/**
 	 * hooked into the wp_head function
