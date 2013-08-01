@@ -709,6 +709,8 @@ class Authority_Posttype {
 				),
 				'register_meta_box_cb' => array( $this->admin_obj , 'metaboxes' ),
 				'public' => TRUE,
+				'publicly_queryable' => FALSE,
+				'exclude_from_search' => TRUE,
 				'taxonomies' => array_keys( $taxonomies ),
 			)
 		);
