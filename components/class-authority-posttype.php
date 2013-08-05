@@ -226,6 +226,10 @@ class Authority_Posttype {
 		// fetch the authority info
 		if( $authority = get_posts( $query ))
 		{
+			if( ! isset( $authority[0]->post_type ) || $this->post_type_name != $authority[0]->post_type )
+			{
+				return FALSE;
+			}
 			// get the authoritative term info
 			$authority_meta = $this->get_post_meta( $authority[0]->ID );
 
