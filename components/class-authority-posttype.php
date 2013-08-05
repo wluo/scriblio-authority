@@ -329,7 +329,7 @@ class Authority_Posttype {
 		// we're on an alias term, redirect
 		$term_link = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
 		// check to make sure the term_link isn't an error
-		if( is_wp_error( $term_link ) )
+		if ( is_wp_error( $term_link ) )
 		{
 			return;
 		}
@@ -350,14 +350,14 @@ class Authority_Posttype {
 		$authority = (object) $this->get_post_meta( $post->ID );
 
 		// fail early if the primary_term isn't set
-		if( ! isset( $authority->primary_term ))
+		if ( ! isset( $authority->primary_term ) )
 		{
 			return $permalink;
 		}
 
 		// test if this is a valid term
 		$term = get_term( $authority->primary_term->term_id , $authority->primary_term->taxonomy );
-		if( ! $term && ! is_wp_error( $term ) )
+		if ( ! $term || is_wp_error( $term ) )
 		{
 			return $permalink;
 		}
@@ -365,7 +365,7 @@ class Authority_Posttype {
 		// return the permalink for the primary term
 		$term_link = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
 		// check to make sure the term_link isn't an error
-		if( is_wp_error( $term_link ) )
+		if ( is_wp_error( $term_link ) )
 		{
 			return home_url();
 		}
