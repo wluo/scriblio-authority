@@ -46,6 +46,13 @@ class Scriblio_Authority_Suggest
 		return $request;
 	}//end request
 
+	/*
+	 * returns a json formatted list of suggestions when called via public or dashboard URLs like:
+	 * http://site.org/EP_NAME/?s=$search
+	 * http://site.org/wp-admin/admin-ajax.php?action=scriblio_authority_suggestions&s=$search
+	 *
+	 * This is a public facing, unprotected method.
+	*/
 	public function get_suggestions()
 	{
 		$s = trim( $_GET['s'] );
