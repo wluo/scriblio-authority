@@ -7,6 +7,7 @@ class Scriblio_Authority_Suggest
 	public function __construct()
 	{
 		add_action( 'init', array( $this, 'init' ) );
+		add_action( 'wp_ajax_scriblio_authority_suggestions', array( $this, 'get_suggestions' ) );
 	}//end __construct
 
 	/**
@@ -20,7 +21,7 @@ class Scriblio_Authority_Suggest
 
 		if ( is_admin() )
 		{
-			wp_localize_script( 'jquery-ui-core', 'scrib_authority_suggest', array( 'url' => home_url( "/{$this->ep_name_suggest}" ) ) );
+			wp_localize_script( 'jquery-ui-core', 'scrib_authority_suggest', array( 'url' => admin_url( 'admin-ajax.php?action=scriblio_authority_suggestions' ) ) );
 		}
 		else
 		{
@@ -39,13 +40,13 @@ class Scriblio_Authority_Suggest
 	{
 		if ( isset( $request[ $this->ep_name_suggest ] ) )
 		{
-			add_filter( 'template_redirect' , array( $this, 'template_redirect' ), 0 );
+			add_filter( 'template_redirect' , array( $this, 'get_suggestions' ), 0 );
 		}//end if
 
 		return $request;
 	}//end request
 
-	public function template_redirect()
+	public function get_suggestions()
 	{
 		$s = trim( $_GET['s'] );
 		$suggestions = $this->suggestions( $s );
@@ -53,7 +54,7 @@ class Scriblio_Authority_Suggest
 		header('Content-Type: application/json');
 		echo json_encode( $suggestions );
 		die;
-	}//end template_redirect
+	}//end get_suggestions
 
 	/**
 	 * generate suggestions based on a search term
