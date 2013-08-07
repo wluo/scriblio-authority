@@ -7,7 +7,6 @@ class Scriblio_Authority_Suggest
 	public function __construct()
 	{
 		add_action( 'init', array( $this, 'init' ) );
-		add_action( 'wp_ajax_scriblio_authority_suggestions', array( $this, 'get_suggestions' ) );
 	}//end __construct
 
 	/**
@@ -21,6 +20,7 @@ class Scriblio_Authority_Suggest
 
 		if ( is_admin() )
 		{
+			add_action( 'wp_ajax_scriblio_authority_suggestions', array( $this, 'get_suggestions' ) );
 			wp_localize_script( 'jquery-ui-core', 'scrib_authority_suggest', array( 'url' => admin_url( 'admin-ajax.php?action=scriblio_authority_suggestions' ) ) );
 		}
 		else
