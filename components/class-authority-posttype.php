@@ -79,7 +79,7 @@ class Authority_Posttype {
 	{
 
 		// sanity check to make sure the go-opencalais plugin is loaded
-		if ( ! function_exists( 'go_opencalais' ) )
+		if ( ! is_callable( array( 'go_opencalais', 'admin' ) ) )
 		{
 			return FALSE;
 		}
