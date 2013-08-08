@@ -120,7 +120,7 @@ class Authority_Posttype {
 
 		if ( has_post_thumbnail( $authority->post->ID ) )
 		{
-			$image_url = wp_get_attachment_image_src( get_post_thumbnail_id( $authority->post->ID ), 'thumbnail' );
+			$image_url = wp_get_attachment_image_src( get_post_thumbnail_id( $authority->post->ID ), 'large' );
 			$image_url = $image_url[0];
 
 			$image  = '<image>';
