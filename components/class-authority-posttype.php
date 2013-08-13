@@ -87,7 +87,7 @@ class Authority_Posttype {
 		if ( ! $this->go_opencalais )
 		{
 			require_once __DIR__ . '/class-authority-go-opencalais.php';
-			$this->yboss = new Authority_GO_OpenCalais();
+			$this->go_opencalais = new Authority_GO_OpenCalais();
 		}
 
 		return $this->go_opencalais;
