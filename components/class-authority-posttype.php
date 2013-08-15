@@ -327,16 +327,16 @@ class Authority_Posttype {
 
 		// we have an authority record, and
 		// we're on an alias term, redirect
-		$term_link  = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
-		$child_link = get_term_link( (int) $queried_object->term_id, $queried_object->taxonomy );
+		$primary_term_link   = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
+		$requested_term_link = get_term_link( (int) $queried_object->term_id, $queried_object->taxonomy );
 
 		// check to make sure neither link is an error
-		if ( is_wp_error( $term_link ) || is_wp_error( $child_link ) )
+		if ( is_wp_error( $primary_term_link ) || is_wp_error( $requested_term_link ) )
 		{
 			return;
 		}
 
-		wp_redirect( str_replace( $child_link, $term_link, home_url( $_SERVER['REQUEST_URI'] ) ) );
+		wp_redirect( str_replace( $requested_term_link, $primary_term_link, home_url( $_SERVER['REQUEST_URI'] ) ) );
 		die;
 	}
 
