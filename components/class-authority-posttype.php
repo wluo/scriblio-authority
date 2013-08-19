@@ -273,7 +273,7 @@ class Authority_Posttype {
 					}
 				}
 			}
-					 
+
 			if( 1 < count( $authority ))
 			{
 				foreach( $authority as $conflict )
@@ -311,7 +311,6 @@ class Authority_Posttype {
 			return;
 		}
 
-
 		// check for an authority record, return if none found
 		if( ! $authority = $this->get_term_authority( $queried_object ))
 		{
@@ -326,9 +325,10 @@ class Authority_Posttype {
 		}
 
 		// we have an authority record, and
-		// we're on an alias term, redirect
+		// we're on an alias term, attempt to redirect
 		$primary_term_link   = get_term_link( (int) $authority->primary_term->term_id, $authority->primary_term->taxonomy );
 		$requested_term_link = get_term_link( (int) $queried_object->term_id, $queried_object->taxonomy );
+		$requested_url       = home_url( $_SERVER['REQUEST_URI'] );
 
 		// check to make sure neither link is an error
 		if ( is_wp_error( $primary_term_link ) || is_wp_error( $requested_term_link ) )
@@ -336,7 +336,19 @@ class Authority_Posttype {
 			return;
 		}
 
-		wp_redirect( str_replace( $requested_term_link, $primary_term_link, home_url( $_SERVER['REQUEST_URI'] ) ) );
+		// attempt to preserve suffixes in the requested url
+		// example, http://example.org/tag/iot-podcast/feed/ should redirect to http://example.org/tag/internet-of-things-podcast/feed/
+		if ( FALSE !== strpos( $requested_url, $requested_term_link ) )
+		{
+			$redirect = str_replace( $requested_term_link, $primary_term_link, home_url( $_SERVER['REQUEST_URI'] ) );
+		}
+		else
+		{
+			$redirect = $primary_term_link;
+		}
+
+
+		wp_redirect( $redirect );
 		die;
 	}
 
