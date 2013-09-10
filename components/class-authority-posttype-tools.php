@@ -786,13 +786,23 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 	{
 		if( ! current_user_can( 'manage_options' ))
 		{
-			return;
+			wp_die( 'I have no idea what you think you\'re trying to do', 'tisk tisk', array( 'response' => 403 ) );
 		}
 
 		// don't bother updating term counts yet, it'll just slow us down and we have so much to do
 		wp_defer_term_counting( TRUE );
 
+		// get default taxonomies
 		$taxonomies = authority_record()->taxonomies;
+
+		// allow work on specific taxonomies
+		if (
+			isset( $_GET['taxonomy'] ) &&
+			taxonomy_exists( $_GET['taxonomy'] )
+		)
+		{
+			$taxonomies = array( get_taxonomy( $_GET['taxonomy'] )->name );
+		}
 
 		// bail if there aren't any registered taxonomies
 		if ( ! $taxonomies )
@@ -816,7 +826,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 				ON tt.term_id = t.term_id
 			 AND tt.taxonomy IN ('" . implode( "','", $taxonomies ) . "')
 			ORDER BY t.name, tt.term_taxonomy_id
-		");
+		", NULL );
 		$terms = $wpdb->get_results( $query );
 
 		// don't bother if we have no terms
