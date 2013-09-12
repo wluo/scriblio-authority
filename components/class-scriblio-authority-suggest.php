@@ -22,12 +22,11 @@ class Scriblio_Authority_Suggest
 		{
 			add_action( 'wp_ajax_scriblio_authority_suggestions', array( $this, 'get_suggestions' ) );
 			add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
-		}
+		}//end if
 		else
 		{
-			wp_localize_script( 'jquery', 'scrib_authority_suggest', array( 'url' => home_url( "/{$this->ep_name_suggest}" ) ) );
 			add_action( 'wp_enqueue_scripts', array( $this, 'wp_enqueue_scripts' ) );
-		}
+		}//end else
 	}//end init
 
 	/**
