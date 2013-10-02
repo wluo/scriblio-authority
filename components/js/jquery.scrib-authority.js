@@ -488,7 +488,7 @@
 				s: $.trim( $entry.val() ),
 				threshold: scrib_authority_suggest.threshold
 			};
-			console.log(params)
+
 			if ( 0 === params.s.length ) {
 				return;
 			}//end if
