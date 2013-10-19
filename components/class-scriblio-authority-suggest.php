@@ -154,7 +154,7 @@ class Scriblio_Authority_Suggest
 					AND tt.taxonomy IN ('" . implode( "','", $taxonomy ). "')
 				WHERE 
 					1 = 1
-					AND $threshold < tt.count
+					AND %d < tt.count
 				ORDER BY
 					hits DESC
 				LIMIT 25;
@@ -165,7 +165,8 @@ class Scriblio_Authority_Suggest
 			$ttids = $wpdb->get_results(
 				$wpdb->prepare(
 					$sql,
-					$search_string . '%'
+					$search_string . '%',
+					$threshold
 				)
 			);
 
