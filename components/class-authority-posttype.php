@@ -448,10 +448,10 @@ class Authority_Posttype {
 	 */
 	public function simplify_taxonomy_for_json( $taxonomy )
 	{
-		$tax = new StdClass;
+		$tax = new stdClass;
 
 		$tax->name = $taxonomy->name;
-		$tax->labels = new StdClass;
+		$tax->labels = new stdClass;
 		$tax->labels->name = $taxonomy->labels->name;
 		$tax->labels->singular_name = $taxonomy->labels->singular_name;
 

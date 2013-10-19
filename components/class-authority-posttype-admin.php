@@ -241,7 +241,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 	public function _metab_family_prep( $which, $collection )
 	{
-		$return = new StdClass;
+		$return = new stdClass;
 		$return->data = array();
 		$return->detail = array();
 		$key = $which . '_terms';
