@@ -342,6 +342,10 @@
 
 			// loop over the properties in the item and add them to the HTML
 			$.each( data, function( key, data_value ) {
+				if ( ! data_value ) {
+					return;
+				}//end if
+
 				// the only exception are the data elements.  Add them to the item's data storage
 				if( 'data' == key ) {
 					$.each( data_value, function( data_key, key_value ) {
