@@ -21,6 +21,7 @@ class Authority_Posttype {
 		add_action( 'wp_head', array( $this, 'wp_head' ) );
 		add_action( 'rss_head', array( $this, 'rss_head' ) );
 		add_action( 'rss2_head', array( $this, 'rss_head' ) );
+		add_action( 'rss2_ns', array( $this, 'rss2_ns' ) );
 
 		add_filter( 'bloginfo_rss', array( $this, 'bloginfo_rss_filter' ), 10, 2 );
 		add_filter( 'template_redirect', array( $this, 'template_redirect' ) , 1 );
@@ -105,6 +106,17 @@ class Authority_Posttype {
 			echo '<meta name="description" content="' . esc_attr( $authority->post->post_excerpt ) . '">';
 		}//end if
 	}//end wp_head
+
+	/**
+	 * hooked to the rss2_ns action to insert additional namespaces for an RSS feed
+	 */
+	public function rss2_ns()
+	{
+		// include the itunes dtd in the RSS feed
+		?>
+		xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+		<?php
+	}//end rss2_ns
 
 	/**
 	 * hooked into the rss_head action to insert a thumbnail image if available
