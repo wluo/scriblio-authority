@@ -21,6 +21,7 @@
 		<ul>
 			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_stem_report' ); ?>">Download term stem report CSV</a></li>
 			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_spell_report&key=PASTE_YOUR_AZURE_DATAMARKET_KEY_HERE' ); ?>">Download term spell check report CSV</a></li>
+			<li><a href="<?php echo admin_url( 'admin-ajax.php?action=authority_all_terms_report' ); ?>">Download all terms</a> for use in <a href="https://adwords.google.com/ko/KeywordPlanner/Home">Google Keyword Planner</a></li>
 		</ul>
 	</div>
 

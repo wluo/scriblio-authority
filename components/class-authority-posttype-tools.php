@@ -15,6 +15,7 @@ class Authority_Posttype_Tools extends Authority_Posttype
 		add_filter( 'wp_ajax_authority_spell_test', array( $this, 'spell_test_ajax' ) );
 		add_filter( 'wp_ajax_authority_stem_report', array( $this, 'stem_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_report', array( $this, 'term_report_ajax' ) );
+		add_filter( 'wp_ajax_authority_all_terms_report', array( $this, 'all_terms_report_ajax' ) );
 		add_filter( 'wp_ajax_authority_term_suffix_cleaner', array( $this, 'term_suffix_cleaner_ajax' ) );
 		add_filter( 'wp_ajax_authority_update_term_counts', array( $this, 'update_term_counts_ajax' ) );
 	}
@@ -513,7 +514,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
 			GROUP BY t.term_id
 			/* generated in Authority_Posttype_Tools::spell_report_ajax() */
-		" );
+		", NULL );
 		$terms = $wpdb->get_results( $query );
 
 		// iterate through the results and output each row as CSV
@@ -639,7 +640,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			JOIN $wpdb->term_taxonomy tt ON t.term_id = tt.term_id
 			GROUP BY t.term_id
 			/* generated in Authority_Posttype_Tools::stem_report_ajax() */
-		" );
+		", NULL );
 		$terms = $wpdb->get_results( $query );
 
 		// iterate through the results and output each row as CSV
@@ -675,10 +676,60 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 						'slug' => $term->slug,
 						'count' => $term->hits,
 						'taxonomy' => $taxonomy,
-						'term_id' => $term->term_id
+						'term_id' => $term->term_id,
 					));
 				}
 			}
+		}
+
+		die;
+	}
+
+	public function all_terms_report_ajax()
+	{
+		// example URL: https://site.org/wp-admin/admin-ajax.php?action=authority_stem_report
+
+		if( ! current_user_can( 'edit_posts' ))
+		{
+			return;
+		}
+
+		// this can use a lot of memory and time
+		ini_set( 'memory_limit', '1024M' );
+		set_time_limit( 900 );
+
+		// set the columns for the report
+		$columns = array(
+			'term',
+		);
+
+		// get the CSV class
+		$csv = new_authority_csv( 'all-terms-report-'. date( 'r' ) , $columns );
+
+		// prepare and execute the query
+		global $wpdb;
+		$query = $wpdb->prepare( "
+			SELECT t.slug
+			FROM $wpdb->terms t
+			WHERE t.slug != ''
+			ORDER BY t.slug ASC
+			/* generated in Authority_Posttype_Tools::all_terms_report_ajax() */
+		", NULL );
+		$terms = $wpdb->get_col( $query );
+
+		// iterate through the results and output each row as CSV
+		foreach( $terms as $term )
+		{
+			$term = preg_replace( '/%[a-z0-9]{2}/', '', str_replace( '-', ' ', $term ) );
+
+			if ( empty( $term ) )
+			{
+				continue;
+			}
+
+			$csv->add( array(
+				'term' => $term,
+			));
 		}
 
 		die;
@@ -728,7 +779,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			ORDER BY tt.count DESC
 			LIMIT 3000
 			/* generated in Authority_Posttype_Tools::term_report_ajax() */
-		" , $taxonomy );
+		", $taxonomy );
 		$terms = $wpdb->get_results( $query );
 
 		// iterate through the results and output each row as CSV
@@ -869,7 +920,7 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 					UPDATE $wpdb->term_taxonomy AS tt
 					SET tt.term_id = %d
 					WHERE tt.term_taxonomy_id = %d
-				" , $alternate_term_id , $term->term_taxonomy_id );
+				", $alternate_term_id, $term->term_taxonomy_id );
 				$wpdb->get_results( $query );
 				clean_term_cache( $term->term_id , $term->taxonomy );
 			}
