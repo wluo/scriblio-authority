@@ -870,8 +870,8 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 				SELECT *
 				FROM $wpdb->terms
 				WHERE 1=1
-				AND slug REGEXP '-([0-9]*)$'
-				AND name NOT REGEXP '[0-9]$'
+				AND slug REGEXP '-([0-9]+)$'
+				AND ( LENGTH( name ) + 2 ) <= LENGTH( slug )
 			) as t
 			JOIN $wpdb->term_taxonomy tt
 				ON tt.term_id = t.term_id
