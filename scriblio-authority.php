@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: Scriblio Term Authority
-Plugin URI: http://about.scriblio.net/
-Version: 1.0
+Plugin URI: http://wordpress.org/plugins/scriblio-authority/
+Version: 1.1
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
 Contributors: borkweb, abackstrom
@@ -27,8 +27,8 @@ License: GPL2
 
 
 // include required components
-require_once dirname( __FILE__ ) . '/components/class-scriblio-authority-suggest.php';
-require_once dirname( __FILE__ ) . '/components/functions.php';
+require_once __DIR__ . '/components/class-scriblio-authority-suggest.php';
+require_once __DIR__ . '/components/functions.php';
 
 scriblio_authority_suggest();
 
