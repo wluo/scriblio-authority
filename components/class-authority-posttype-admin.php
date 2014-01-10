@@ -179,7 +179,7 @@ class Authority_Posttype_Admin extends Authority_Posttype
 
 		$aliases = array();
 		$json = array();
-		if ( isset( $this->instance['alias_terms'] ) && ! is_array( $this->instance['alias_terms'] ) )
+		if ( isset( $this->instance['alias_terms'] ) && is_array( $this->instance['alias_terms'] ) )
 		{
 			$authority_conflicts = array();
 			foreach( $this->instance['alias_terms'] as $term )
