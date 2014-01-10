@@ -24,9 +24,9 @@ class Authority_GO_OpenCalais
 					// attempt to create a proper term if none exists
 					$term_id = wp_insert_term( $v->name, $oc_config['mapping'][ $v->_type ] );
 
-					if ( ! isset( $term_id['term_id'] ) )
+					if ( ! is_array( $term_id ) || ! isset( $term_id['term_id'] ) )
 					{
-						error_log( __FILE__ . ':' . __LINE__ .' failed to insert term '. print_r( $term_id, TRUE ) .' referrer:' . $_SERVER['HTTP_REFERER'] );
+						trigger_error( __FILE__ . ':' . __LINE__ .' failed to insert term '. print_r( $term_id, TRUE ) .' referrer:' . $_SERVER['HTTP_REFERER'], E_USER_NOTICE );
 						continue;
 					}
 
