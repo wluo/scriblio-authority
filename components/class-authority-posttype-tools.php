@@ -895,7 +895,8 @@ window.location = "<?php echo admin_url('admin-ajax.php?action=authority_create_
 			// check to see if there's an existing term taxonomy record for the clean term
 			if( $alternate_term = get_term_by( 'slug' , $clean_slug , $term->taxonomy ))
 			{
-				echo '<h3>Other term_taxonomy_record fount for  '. $term->slug .': '. $alternate_term->slug .'</h3>';
+				echo '<h3>Other term_taxonomy_record found for "'. $term->name . '" (' . $term->slug . ', ' . $term->term_id . '): "'. $alternate_term->name . '" (' . $alternate_term->slug . ', ' . $alternate_term->term_id . ')</h3>';
+
 				$alternate_term_id = (int) $alternate_term->term_id;
 
 				// get all the posts with the ugly term, update them with the clean term
